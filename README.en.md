@@ -34,21 +34,22 @@ Restart DSH, then open **Settings → Copilot Accounts**.
 
 ## Usage
 
-| Button | Effect |
+The settings page is one panel with three inline sections — no dialogs:
+
+| Section | Content |
 |---|---|
-| **Save current** | Stores the signed-in account (usually automatic) |
-| **Add account / share sign-in** | Creates one authorization link you can send to someone else; they authorize in their own browser, and the account is added and switched here |
-| **Upload account** | Paste a token / account card / credential snippet, or pick a file |
-| **Export all** | Downloads every account as JSON |
+| Active / saved accounts | Active account card, **Save current** and **Export all**, and per-account **Switch** / **Delete** |
+| Add / share sign-in | **Generate sign-in link**; the code, the shareable text, copy buttons, and the waiting state appear in the same section |
+| Upload account | Paste box, **Import**, **Choose a file**, and an expandable guide to the accepted sources |
 
 Slash commands: `/copilot-accounts`, `/copilot-use <login|index>`, `/copilot-save`.
 
 ### Share a sign-in link
 
-1. **Add account / share sign-in** → **Copy invite (link + code)**.
-2. Send it to the other person.
+1. **Add / share sign-in** → **Generate sign-in link**.
+2. **Copy invite** and send it to the other person (or copy just the link).
 3. They open `https://github.com/login/device`, enter the code, and authorize.
-4. The account is added and switched here automatically. Closing the dialog does not cancel the wait.
+4. The account is added and switched here automatically. Leaving the page does not cancel the wait.
 
 ## Uploading an account
 

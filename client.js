@@ -1,16 +1,16 @@
 /**
  * dsh-copilot-accounts — Client half.
  *
- * One Settings page: the active account, the saved accounts, one-click
- * switching, a shareable device-flow sign-in, and upload/export of portable
- * account cards.
+ * One Settings page with three inline sections: the active/saved accounts,
+ * a shareable device-flow sign-in, and upload. No dialogs: every control and
+ * every result stays in this panel.
  */
 window.__ModuleLoader__.load({
   id: "dsh-copilot-accounts",
   factory(require) {
     const React = require("react");
     const { jsx, jsxs, Fragment } = require("react/jsx-runtime");
-    const { Button, Modal, writeClipboard } = require("@deepseek-ai/dsh-client-ui-primitives");
+    const { Button, writeClipboard } = require("@deepseek-ai/dsh-client-ui-primitives");
     const { useEffect, useRef, useState } = React;
 
     const API = "/api/copilot-accounts";
@@ -20,16 +20,14 @@ window.__ModuleLoader__.load({
       zh: {
         nav: "Copilot 账号",
         title: "GitHub Copilot 账号",
-        intro: "保存多个已登录的 Copilot 账号，点一下即可切换。切换只改 DSH 的凭据，不会退出 GitHub；登录链接可以直接发给别人，让对方在自己的浏览器里授权。",
+        intro: "保存多个已登录的 Copilot 账号，点一下即可切换。切换只改 DSH 的凭据，不会退出 GitHub。",
         loading: "加载中…",
         current: "当前使用",
         none: "当前没有已登录的 Copilot 账号。",
-        signedOutHint: "可以添加账号，或上传一份别人已登录的凭据。",
+        signedOutHint: "可以在下面生成登录链接，或上传一份别人已登录的凭据。",
         saved: "已保存的账号",
         empty: "还没有保存过账号。登录一个账号后会自动保存。",
         saveCurrent: "保存当前账号",
-        addAccount: "添加账号 / 分享登录",
-        upload: "上传账号",
         exportAll: "导出全部",
         switch: "切换",
         remove: "删除",
@@ -38,28 +36,25 @@ window.__ModuleLoader__.load({
         models: "个模型",
         lastUsed: "上次使用",
         currentBadge: "当前",
-        loginTitle: "添加一个 Copilot 账号",
-        loginDesc: "把下面的链接和代码发给对方，让对方在自己的浏览器里打开并授权。你不需要退出自己的 GitHub 账号；授权完成后这里会自动添加并切换。",
-        code: "设备代码",
-        openGitHub: "在本机打开",
-        waiting: "等待对方授权…（15 分钟内有效）",
-        loginDone: "已添加并切换到新账号。",
-        retry: "重试",
-        close: "关闭",
-        cancel: "取消",
+        shareTitle: "添加 / 分享登录",
+        shareDesc: "生成一次性授权链接。可以自己用，也可以复制发给别人——对方在自己的浏览器里打开并授权，你不需要退出自己的 GitHub 账号。",
+        generateLink: "生成授权链接",
+        regenerate: "再生成一个",
         cancelFlow: "取消这次登录",
         copyCode: "复制代码",
         copyLink: "复制链接",
-        copyInvite: "复制邀请（链接 + 代码）",
+        copyInvite: "复制邀请",
         copied: "已复制",
         copyFailed: "复制失败，请手动选中复制",
         shareNote: "发给对方的内容：",
-        pendingTitle: "有一个等待授权的登录",
-        pendingView: "查看邀请",
+        openHere: "在本机打开",
         shareLoginHint: "对方打开链接输入代码即可，不需要知道你的账号。",
-        importTitle: "上传账号",
-        importDesc: "支持三种来源：本插件的账号卡片、DSH 凭据文件、或一个长效 token。",
-        importPlaceholder: "在这里粘贴：账号卡片 JSON / .credentials.yaml 内容 / ghu_ 开头的 token",
+        waiting: "等待对方授权…（15 分钟内有效）",
+        loginDone: "已添加并切换到新账号。",
+        closeHint: "离开这个页面不会中断等待；授权完成后账号会自动加入列表。",
+        uploadTitle: "上传账号",
+        uploadDesc: "支持三种来源：本插件的账号卡片、DSH 凭据文件、或一个长效 token。",
+        uploadPlaceholder: "在这里粘贴：账号卡片 JSON / .credentials.yaml 内容 / ghu_ 开头的 token",
         importAction: "导入",
         importing: "导入中…",
         chooseFile: "选择文件…",
@@ -81,21 +76,18 @@ window.__ModuleLoader__.load({
         help3Body: "直接粘贴 ghu_ 开头的长效 token（gho_ / github_pat_ 也行）。不需要复制 access / expires。",
         helpPaths: "对方机器的路径通常是：C:\\Users\\<用户名>\\.dsh\\.credentials.yaml（macOS/Linux：~/.dsh/.credentials.yaml）。本机路径见下方。",
         acceptHint: "支持 .json / .yaml / .yml / .txt",
-        closeHint: "关掉这个窗口不会中断等待；授权完成后账号会自动加入列表。",
       },
       en: {
         nav: "Copilot Accounts",
         title: "GitHub Copilot Accounts",
-        intro: "Keep several signed-in Copilot accounts and switch with one click. Switching only rewrites DSH credentials; it never signs you out of GitHub. The sign-in link can be sent to someone else so they authorize in their own browser.",
+        intro: "Keep several signed-in Copilot accounts and switch with one click. Switching only rewrites DSH credentials; it never signs you out of GitHub.",
         loading: "Loading…",
         current: "Active",
         none: "No Copilot account is signed in right now.",
-        signedOutHint: "Add an account, or upload credentials someone else is already signed in with.",
+        signedOutHint: "Generate a sign-in link below, or upload credentials someone else is already signed in with.",
         saved: "Saved accounts",
         empty: "Nothing saved yet. Signing in saves the account automatically.",
         saveCurrent: "Save current",
-        addAccount: "Add account / share sign-in",
-        upload: "Upload account",
         exportAll: "Export all",
         switch: "Switch",
         remove: "Delete",
@@ -104,28 +96,25 @@ window.__ModuleLoader__.load({
         models: "models",
         lastUsed: "Last used",
         currentBadge: "active",
-        loginTitle: "Add a Copilot account",
-        loginDesc: "Send the link and code below to the other person; they open it in their own browser and authorize. You do not need to sign out of GitHub. The account is added and switched automatically when they finish.",
-        code: "Device code",
-        openGitHub: "Open here",
-        waiting: "Waiting for authorization… (valid for 15 minutes)",
-        loginDone: "Account added and switched.",
-        retry: "Retry",
-        close: "Close",
-        cancel: "Cancel",
+        shareTitle: "Add / share sign-in",
+        shareDesc: "Creates a one-time authorization link. Use it yourself, or send it to someone else: they authorize in their own browser, and you never sign out of GitHub.",
+        generateLink: "Generate sign-in link",
+        regenerate: "Generate another",
         cancelFlow: "Cancel this sign-in",
         copyCode: "Copy code",
         copyLink: "Copy link",
-        copyInvite: "Copy invite (link + code)",
+        copyInvite: "Copy invite",
         copied: "Copied",
         copyFailed: "Copy failed — select and copy manually",
         shareNote: "Send this to the other person:",
-        pendingTitle: "A sign-in is waiting for authorization",
-        pendingView: "Show invite",
+        openHere: "Open here",
         shareLoginHint: "They only need the link and code; they never see your account.",
-        importTitle: "Upload account",
-        importDesc: "Three sources work: this plugin's account card, a DSH credentials file, or one long-lived token.",
-        importPlaceholder: "Paste an account-card JSON / .credentials.yaml content / a ghu_ token here",
+        waiting: "Waiting for authorization… (valid for 15 minutes)",
+        loginDone: "Account added and switched.",
+        closeHint: "Leaving this page does not interrupt the wait; the account joins the list when authorization finishes.",
+        uploadTitle: "Upload account",
+        uploadDesc: "Three sources work: this plugin's account card, a DSH credentials file, or one long-lived token.",
+        uploadPlaceholder: "Paste an account-card JSON / .credentials.yaml content / a ghu_ token here",
         importAction: "Import",
         importing: "Importing…",
         chooseFile: "Choose a file…",
@@ -147,7 +136,6 @@ window.__ModuleLoader__.load({
         help3Body: "Paste a long-lived ghu_ token (gho_ / github_pat_ also work). No need to copy access or expires.",
         helpPaths: "On their machine the file is usually C:\\Users\\<name>\\.dsh\\.credentials.yaml (macOS/Linux: ~/.dsh/.credentials.yaml). This machine's paths are below.",
         acceptHint: ".json / .yaml / .yml / .txt",
-        closeHint: "Closing this dialog does not interrupt the wait; the account joins the list when authorization finishes.",
       },
     };
 
@@ -158,13 +146,23 @@ window.__ModuleLoader__.load({
     }
 
     const css = {
-      page: { display: "flex", flexDirection: "column", gap: "16px", padding: "4px 0 24px" },
+      page: { display: "flex", flexDirection: "column", gap: "18px", padding: "4px 0 24px", maxWidth: "760px" },
       header: { display: "flex", flexDirection: "column", gap: "6px" },
       title: { fontSize: "18px", fontWeight: 600, margin: 0 },
       intro: { margin: 0, opacity: 0.72, fontSize: "13px", lineHeight: 1.5 },
-      actions: { display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "4px" },
-      section: { display: "flex", flexDirection: "column", gap: "10px" },
-      sectionTitle: { fontSize: "13px", fontWeight: 600, opacity: 0.8, margin: 0 },
+      section: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        padding: "14px",
+        borderRadius: "12px",
+        border: "1px solid rgba(127,127,127,0.24)",
+        background: "rgba(127,127,127,0.04)",
+      },
+      sectionHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" },
+      sectionTitle: { fontSize: "14px", fontWeight: 600, margin: 0 },
+      sectionDesc: { margin: 0, opacity: 0.66, fontSize: "12px", lineHeight: 1.6 },
+      actions: { display: "flex", flexWrap: "wrap", gap: "8px" },
       card: {
         display: "flex",
         alignItems: "center",
@@ -200,24 +198,12 @@ window.__ModuleLoader__.load({
         border: "1px solid rgba(45,164,78,0.5)",
       },
       meta: { fontSize: "12px", opacity: 0.62, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-      rowActions: { display: "flex", gap: "6px", flex: "0 0 auto" },
+      rowActions: { display: "flex", gap: "6px", flex: "0 0 auto", flexWrap: "wrap" },
       notice: { fontSize: "12px", color: "#2da44e" },
       error: { fontSize: "12px", color: "#d1242f", whiteSpace: "pre-wrap" },
-      pending: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        flexWrap: "wrap",
-        padding: "10px 12px",
-        borderRadius: "10px",
-        border: "1px dashed rgba(31,111,235,0.55)",
-        background: "rgba(31,111,235,0.06)",
-        fontSize: "13px",
-      },
-      modalBody: { display: "flex", flexDirection: "column", gap: "12px" },
       textarea: {
         width: "100%",
-        minHeight: "140px",
+        minHeight: "120px",
         resize: "vertical",
         padding: "10px",
         borderRadius: "8px",
@@ -229,27 +215,20 @@ window.__ModuleLoader__.load({
         lineHeight: 1.5,
         boxSizing: "border-box",
       },
-      hint: { fontSize: "12px", opacity: 0.66, lineHeight: 1.5 },
-      link: {
-        border: "none",
-        background: "none",
-        padding: 0,
-        color: "#0969da",
-        cursor: "pointer",
-        fontSize: "12px",
-        textDecoration: "underline",
-      },
+      hint: { fontSize: "12px", opacity: 0.66, lineHeight: 1.6 },
       code: {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        fontSize: "22px",
-        letterSpacing: "4px",
+        fontSize: "20px",
+        letterSpacing: "3px",
         fontWeight: 700,
-        padding: "12px 16px",
+        padding: "10px 14px",
         borderRadius: "10px",
         border: "1px dashed rgba(127,127,127,0.5)",
         textAlign: "center",
         userSelect: "all",
+        whiteSpace: "nowrap",
       },
+      codeRow: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" },
       shareBox: {
         display: "flex",
         flexDirection: "column",
@@ -262,9 +241,10 @@ window.__ModuleLoader__.load({
       shareText: {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         fontSize: "12px",
-        lineHeight: 1.6,
+        lineHeight: 1.7,
         whiteSpace: "pre-wrap",
-        wordBreak: "break-all",
+        overflowWrap: "break-word",
+        wordBreak: "normal",
         userSelect: "all",
       },
       inlineRow: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" },
@@ -387,10 +367,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = useState("");
       const [notice, setNotice] = useState("");
       const [error, setError] = useState("");
-      const [importOpen, setImportOpen] = useState(false);
       const [importText, setImportText] = useState("");
-      const [loginOpen, setLoginOpen] = useState(false);
-      const [flow, setFlow] = useState({ state: "idle" });
       const [copied, setCopied] = useState("");
       const fileRef = useRef(null);
 
@@ -423,7 +400,7 @@ window.__ModuleLoader__.load({
         void refresh();
       }, []);
 
-      // While a shared sign-in is waiting, keep the page in sync with the host.
+      // A shared sign-in is completed by the host; keep this panel in sync.
       useEffect(() => {
         if (view?.login?.state !== "pending") return undefined;
         const timer = setInterval(async () => {
@@ -434,36 +411,9 @@ window.__ModuleLoader__.load({
           } catch {
             // transient failure: the host keeps polling regardless
           }
-        }, 3000);
+        }, 2500);
         return () => clearInterval(timer);
       }, [view?.login?.state]);
-
-      // The dialog mirrors the host flow.
-      useEffect(() => {
-        if (view?.login?.state === "pending") setFlow(view.login);
-      }, [view?.login?.state]);
-
-      useEffect(() => {
-        if (!loginOpen || flow.state !== "pending") return undefined;
-        let cancelled = false;
-        const timer = setInterval(async () => {
-          try {
-            const next = await call("login/status");
-            if (cancelled) return;
-            setFlow(next);
-            if (next.state === "done") {
-              setNotice(t("loginDone"));
-              await refresh();
-            }
-          } catch {
-            // keep the dialog open on a transient poll failure
-          }
-        }, 2000);
-        return () => {
-          cancelled = true;
-          clearInterval(timer);
-        };
-      }, [loginOpen, flow.state]);
 
       const copy = async (kind, text) => {
         try {
@@ -509,16 +459,13 @@ window.__ModuleLoader__.load({
 
       const startLogin = () =>
         run("login", async () => {
-          const next = await call("login/start", { method: "POST", body: "{}" });
-          setFlow(next);
-          setLoginOpen(true);
+          await call("login/start", { method: "POST", body: "{}" });
+          await refresh();
         });
 
       const cancelFlow = () =>
         run("cancel", async () => {
           await call("login/cancel", { method: "POST", body: "{}" });
-          setFlow({ state: "idle" });
-          setLoginOpen(false);
           await refresh();
         });
 
@@ -526,7 +473,6 @@ window.__ModuleLoader__.load({
         run("import", async () => {
           const value = await call("import", { method: "POST", body: JSON.stringify({ text: importText }) });
           setView(value.vault);
-          setImportOpen(false);
           setImportText("");
           setNotice(t("imported", { n: value.imported.length }));
         });
@@ -544,7 +490,9 @@ window.__ModuleLoader__.load({
 
       const accounts = view.accounts ?? [];
       const active = accounts.find((account) => account.current);
-      const pending = view.login?.state === "pending" ? view.login : null;
+      const flow = view.login ?? { state: "idle" };
+      const pending = flow.state === "pending";
+      const failed = flow.state === "error" || flow.state === "expired" || flow.state === "denied";
 
       return jsxs("div", {
         style: css.page,
@@ -556,39 +504,25 @@ window.__ModuleLoader__.load({
               jsx("p", { style: css.intro, children: t("intro") }),
             ],
           }),
-          jsxs("div", {
-            style: css.actions,
-            children: [
-              jsx(Button, { variant: "outline", disabled: busy !== "", onClick: () => void saveCurrent(), children: busy === "save" ? t("saving") : t("saveCurrent") }),
-              jsx(Button, { variant: "primary", disabled: busy !== "", onClick: () => void startLogin(), children: t("addAccount") }),
-              jsx(Button, { variant: "outline", disabled: busy !== "", onClick: () => setImportOpen(true), children: t("upload") }),
-              jsx(Button, { variant: "outline", disabled: busy !== "", onClick: () => void exportAll(), children: t("exportAll") }),
-            ],
-          }),
-          pending
-            ? jsxs("div", {
-                style: css.pending,
-                children: [
-                  jsx("span", { children: `${t("pendingTitle")}: ${pending.userCode ?? ""}` }),
-                  jsx(Button, {
-                    variant: "outline",
-                    size: "sm",
-                    onClick: () => {
-                      setFlow(pending);
-                      setLoginOpen(true);
-                    },
-                    children: t("pendingView"),
-                  }),
-                  jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void cancelFlow(), children: t("cancelFlow") }),
-                ],
-              })
-            : null,
           notice.length > 0 ? jsx("div", { style: css.notice, children: notice }) : null,
           error.length > 0 ? jsx("div", { style: css.error, children: error }) : null,
+
           jsxs("div", {
             style: css.section,
             children: [
-              jsx("h3", { style: css.sectionTitle, children: t("current") }),
+              jsxs("div", {
+                style: css.sectionHead,
+                children: [
+                  jsx("h3", { style: css.sectionTitle, children: t("current") }),
+                  jsxs("div", {
+                    style: css.actions,
+                    children: [
+                      jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void saveCurrent(), children: busy === "save" ? t("saving") : t("saveCurrent") }),
+                      jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void exportAll(), children: t("exportAll") }),
+                    ],
+                  }),
+                ],
+              }),
               active === undefined
                 ? jsxs("div", {
                     style: css.card,
@@ -604,21 +538,183 @@ window.__ModuleLoader__.load({
                     ],
                   })
                 : jsx(AccountCard, { account: active, busy: busy === "use", onUse: useAccount, onDelete: deleteAccount }),
+              jsxs("div", {
+                style: { display: "flex", flexDirection: "column", gap: "8px" },
+                children: [
+                  jsx("h3", { style: css.sectionTitle, children: t("saved") }),
+                  accounts.filter((account) => !account.current).length === 0
+                    ? jsx("div", { style: css.hint, children: t("empty") })
+                    : jsxs(Fragment, {
+                        children: accounts
+                          .filter((account) => !account.current)
+                          .map((account) => jsx(AccountCard, { account, busy: busy === "use", onUse: useAccount, onDelete: deleteAccount }, account.id)),
+                      }),
+                ],
+              }),
             ],
           }),
+
           jsxs("div", {
             style: css.section,
             children: [
-              jsx("h3", { style: css.sectionTitle, children: t("saved") }),
-              accounts.filter((account) => !account.current).length === 0
-                ? jsx("div", { style: css.hint, children: t("empty") })
-                : jsxs(Fragment, {
-                    children: accounts
-                      .filter((account) => !account.current)
-                      .map((account) => jsx(AccountCard, { account, busy: busy === "use", onUse: useAccount, onDelete: deleteAccount }, account.id)),
-                  }),
+              jsx("h3", { style: css.sectionTitle, children: t("shareTitle") }),
+              jsx("p", { style: css.sectionDesc, children: t("shareDesc") }),
+              pending
+                ? jsxs(Fragment, {
+                    children: [
+                      jsxs("div", {
+                        style: css.codeRow,
+                        children: [
+                          jsx("div", { style: css.code, children: flow.userCode ?? "…" }),
+                          jsx(Button, {
+                            variant: "outline",
+                            size: "sm",
+                            onClick: () => void copy("code", flow.userCode ?? ""),
+                            children: copied === "code" ? t("copied") : t("copyCode"),
+                          }),
+                        ],
+                      }),
+                      jsxs("div", {
+                        style: css.shareBox,
+                        children: [
+                          jsx("div", { style: css.hint, children: t("shareNote") }),
+                          jsx("div", { style: css.shareText, children: inviteText(flow) }),
+                          jsxs("div", {
+                            style: css.inlineRow,
+                            children: [
+                              jsx(Button, {
+                                variant: "primary",
+                                size: "sm",
+                                onClick: () => void copy("invite", inviteText(flow)),
+                                children: copied === "invite" ? t("copied") : t("copyInvite"),
+                              }),
+                              jsx(Button, {
+                                variant: "outline",
+                                size: "sm",
+                                onClick: () => void copy("link", inviteLink(flow)),
+                                children: copied === "link" ? t("copied") : t("copyLink"),
+                              }),
+                              jsx(Button, {
+                                variant: "outline",
+                                size: "sm",
+                                onClick: () => {
+                                  if (flow.verificationUri) globalThis.open(flow.verificationUri, "_blank", "noopener,noreferrer");
+                                },
+                                children: t("openHere"),
+                              }),
+                            ],
+                          }),
+                          jsx("div", { style: css.hint, children: t("shareLoginHint") }),
+                        ],
+                      }),
+                      jsx("div", { style: css.hint, children: t("waiting") }),
+                      jsx("div", { style: css.hint, children: t("closeHint") }),
+                      jsxs("div", {
+                        style: css.actions,
+                        children: [
+                          jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void cancelFlow(), children: t("cancelFlow") }),
+                        ],
+                      }),
+                    ],
+                  })
+                : flow.state === "done"
+                  ? jsxs("div", {
+                      style: { display: "flex", flexDirection: "column", gap: "8px" },
+                      children: [
+                        jsx("div", { style: css.notice, children: t("loginDone") }),
+                        jsxs("div", {
+                          style: css.actions,
+                          children: [
+                            jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void startLogin(), children: t("regenerate") }),
+                          ],
+                        }),
+                      ],
+                    })
+                  : jsxs("div", {
+                      style: { display: "flex", flexDirection: "column", gap: "8px" },
+                      children: [
+                        failed ? jsx("div", { style: css.error, children: flow.error ?? flow.state }) : null,
+                        jsxs("div", {
+                          style: css.actions,
+                          children: [
+                            jsx(Button, { variant: "primary", size: "sm", disabled: busy !== "", onClick: () => void startLogin(), children: failed ? t("regenerate") : t("generateLink") }),
+                          ],
+                        }),
+                      ],
+                    }),
             ],
           }),
+
+          jsxs("div", {
+            style: css.section,
+            children: [
+              jsx("h3", { style: css.sectionTitle, children: t("uploadTitle") }),
+              jsx("p", { style: css.sectionDesc, children: t("uploadDesc") }),
+              jsx("textarea", {
+                value: importText,
+                onChange: (event) => setImportText(event.target.value),
+                placeholder: t("uploadPlaceholder"),
+                style: css.textarea,
+                spellCheck: false,
+              }),
+              jsxs("div", {
+                style: css.inlineRow,
+                children: [
+                  jsx(Button, {
+                    variant: "primary",
+                    size: "sm",
+                    disabled: busy === "import" || importText.trim().length === 0,
+                    onClick: () => void doImport(),
+                    children: busy === "import" ? t("importing") : t("importAction"),
+                  }),
+                  jsx(Button, { variant: "outline", size: "sm", onClick: () => fileRef.current?.click(), children: t("chooseFile") }),
+                  jsx("span", { style: css.hint, children: t("acceptHint") }),
+                ],
+              }),
+              jsx("input", {
+                ref: fileRef,
+                type: "file",
+                accept: ".json,.yaml,.yml,.txt",
+                style: { display: "none" },
+                onChange: (event) => void onFile(event),
+              }),
+              jsxs("details", {
+                style: css.help,
+                children: [
+                  jsx("summary", { style: css.helpSummary, children: t("helpTitle") }),
+                  jsxs("div", {
+                    style: css.helpBody,
+                    children: [
+                      jsxs("div", {
+                        children: [
+                          jsx("div", { style: { fontWeight: 600 }, children: t("help1Title") }),
+                          jsx("div", { children: t("help1Body") }),
+                        ],
+                      }),
+                      jsxs("div", {
+                        children: [
+                          jsx("div", { style: { fontWeight: 600 }, children: t("help2Title") }),
+                          jsx("div", { children: t("help2Body") }),
+                        ],
+                      }),
+                      jsxs("div", {
+                        children: [
+                          jsx("div", { style: { fontWeight: 600 }, children: t("help3Title") }),
+                          jsx("div", { children: t("help3Body") }),
+                        ],
+                      }),
+                      jsx("div", { style: css.hint, children: t("helpPaths") }),
+                      jsxs("div", {
+                        style: css.path,
+                        children: [jsx("div", { children: `${t("credentials")}: ${view.credentialsPath}` }), jsx("div", { children: `${t("vault")}: ${view.vaultPath}` })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+
           jsxs("div", {
             style: css.footer,
             children: [
@@ -626,161 +722,6 @@ window.__ModuleLoader__.load({
               jsx("div", { children: `${t("credentials")}: ${view.credentialsPath}` }),
               jsx("div", { children: t("security") }),
             ],
-          }),
-          jsx(Modal, {
-            open: loginOpen,
-            onClose: () => setLoginOpen(false),
-            title: t("loginTitle"),
-            description: t("loginDesc"),
-            closeLabel: t("close"),
-            footer: jsxs(Fragment, {
-              children: [
-                jsx(Button, { variant: "outline", onClick: () => setLoginOpen(false), children: t("close") }),
-                flow.state === "pending"
-                  ? jsx(Button, { variant: "outline", onClick: () => void copy("invite", inviteText(flow)), children: copied === "invite" ? t("copied") : t("copyInvite") })
-                  : null,
-                jsx(Button, {
-                  variant: "outline",
-                  onClick: () => {
-                    if (flow.verificationUri) globalThis.open(flow.verificationUri, "_blank", "noopener,noreferrer");
-                  },
-                  disabled: !flow.verificationUri || flow.state !== "pending",
-                  children: t("openGitHub"),
-                }),
-                flow.state === "pending"
-                  ? jsx(Button, { variant: "outline", onClick: () => void cancelFlow(), children: t("cancelFlow") })
-                  : null,
-              ].filter(Boolean),
-            }),
-            children: jsxs("div", {
-              style: css.modalBody,
-              children:
-                flow.state === "done"
-                  ? jsx("div", { style: css.notice, children: t("loginDone") })
-                  : flow.state === "error" || flow.state === "expired" || flow.state === "denied"
-                    ? jsx("div", { style: css.error, children: flow.error ?? flow.state })
-                    : jsxs(Fragment, {
-                        children: [
-                          jsxs("div", {
-                            style: css.inlineRow,
-                            children: [
-                              jsx("div", { style: { ...css.code, flex: 1 }, children: flow.userCode ?? "…" }),
-                              jsx(Button, {
-                                variant: "outline",
-                                size: "sm",
-                                onClick: () => void copy("code", flow.userCode ?? ""),
-                                children: copied === "code" ? t("copied") : t("copyCode"),
-                              }),
-                            ],
-                          }),
-                          jsxs("div", {
-                            style: css.shareBox,
-                            children: [
-                              jsx("div", { style: css.hint, children: t("shareNote") }),
-                              jsx("div", { style: css.shareText, children: inviteText(flow) }),
-                              jsxs("div", {
-                                style: css.inlineRow,
-                                children: [
-                                  jsx(Button, {
-                                    variant: "primary",
-                                    size: "sm",
-                                    onClick: () => void copy("invite", inviteText(flow)),
-                                    children: copied === "invite" ? t("copied") : t("copyInvite"),
-                                  }),
-                                  jsx(Button, {
-                                    variant: "outline",
-                                    size: "sm",
-                                    onClick: () => void copy("link", inviteLink(flow)),
-                                    children: copied === "link" ? t("copied") : t("copyLink"),
-                                  }),
-                                ],
-                              }),
-                              jsx("div", { style: css.hint, children: t("shareLoginHint") }),
-                            ],
-                          }),
-                          jsx("div", { style: css.hint, children: t("waiting") }),
-                          jsx("div", { style: css.hint, children: t("closeHint") }),
-                        ],
-                      }),
-            }),
-          }),
-          jsx(Modal, {
-            open: importOpen,
-            onClose: () => setImportOpen(false),
-            title: t("importTitle"),
-            description: t("importDesc"),
-            closeLabel: t("close"),
-            footer: jsxs(Fragment, {
-              children: [
-                jsx(Button, { variant: "outline", onClick: () => setImportOpen(false), children: t("cancel") }),
-                jsx(Button, {
-                  variant: "primary",
-                  disabled: busy === "import" || importText.trim().length === 0,
-                  onClick: () => void doImport(),
-                  children: busy === "import" ? t("importing") : t("importAction"),
-                }),
-              ],
-            }),
-            children: jsxs("div", {
-              style: css.modalBody,
-              children: [
-                jsx("textarea", {
-                  value: importText,
-                  onChange: (event) => setImportText(event.target.value),
-                  placeholder: t("importPlaceholder"),
-                  style: css.textarea,
-                  spellCheck: false,
-                }),
-                jsxs("div", {
-                  style: css.inlineRow,
-                  children: [
-                    jsx(Button, { variant: "outline", size: "sm", onClick: () => fileRef.current?.click(), children: t("chooseFile") }),
-                    jsx("span", { style: css.hint, children: t("acceptHint") }),
-                  ],
-                }),
-                jsx("input", {
-                  ref: fileRef,
-                  type: "file",
-                  accept: ".json,.yaml,.yml,.txt",
-                  style: { display: "none" },
-                  onChange: (event) => void onFile(event),
-                }),
-                jsxs("details", {
-                  style: css.help,
-                  children: [
-                    jsx("summary", { style: css.helpSummary, children: t("helpTitle") }),
-                    jsxs("div", {
-                      style: css.helpBody,
-                      children: [
-                        jsxs("div", {
-                          children: [
-                            jsx("div", { style: { fontWeight: 600 }, children: t("help1Title") }),
-                            jsx("div", { children: t("help1Body") }),
-                          ],
-                        }),
-                        jsxs("div", {
-                          children: [
-                            jsx("div", { style: { fontWeight: 600 }, children: t("help2Title") }),
-                            jsx("div", { children: t("help2Body") }),
-                          ],
-                        }),
-                        jsxs("div", {
-                          children: [
-                            jsx("div", { style: { fontWeight: 600 }, children: t("help3Title") }),
-                            jsx("div", { children: t("help3Body") }),
-                          ],
-                        }),
-                        jsx("div", { style: css.hint, children: t("helpPaths") }),
-                        jsxs("div", {
-                          style: css.path,
-                          children: [jsx("div", { children: `${t("credentials")}: ${view.credentialsPath}` }), jsx("div", { children: `${t("vault")}: ${view.vaultPath}` })],
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-              ],
-            }),
           }),
         ],
       });

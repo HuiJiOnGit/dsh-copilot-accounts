@@ -38,7 +38,7 @@ const USER_URL = "https://api.github.com/user";
 const TOKEN_PATTERN = /\b(?:ghu_|gho_|github_pat_)[A-Za-z0-9_]{20,}\b/g;
 const CLASSIC_PAT_PATTERN = /\bghp_[A-Za-z0-9]{20,}\b/;
 
-const PLUGIN_VERSION = "0.1.1";
+const PLUGIN_VERSION = "0.1.2";
 const POLL_MIN_MS = 5000;
 const CAPTURE_DEBOUNCE_MS = 500;
 
