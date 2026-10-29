@@ -1,0 +1,52 @@
+{
+  "name": "dsh-copilot-accounts",
+  "version": "0.1.0",
+  "description": "Save, switch, and share GitHub Copilot accounts for the DeepSeek Harness Copilot route.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "copilot",
+    "github-copilot",
+    "plugin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HuiJiOnGit/dsh-copilot-accounts.git"
+  }
+}

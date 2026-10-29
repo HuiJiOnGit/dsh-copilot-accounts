@@ -1,0 +1,6 @@
+# dsh-copilot-accounts bundle patch.
+# Inserts one Host plugin row; the Client half is contributed by the package's
+# `dsh.client` manifest and registers its own Settings page.
+- insert:
+    - id: copilot-accounts
+      name: 'dsh-copilot-accounts'
