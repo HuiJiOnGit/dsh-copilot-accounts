@@ -14,6 +14,7 @@ DSH 内置的 `github-copilot` 路由只认识一份凭据（`llm-pi-ai/github-c
 - **自动保存**：登录、刷新 token、外部改动凭据时，自动把当前账号存进账号文件，不需要你手动退出；
 - **额度可见**：每个账号卡片显示 Copilot premium requests 剩余量（`已用/总量`、重置日期），可一键刷新；
 - **导出**：可以导出全部账号，也可以单独导出某一个账号；
+- **退出登录**：清掉 DSH 当前凭据，但账号仍留在列表里，随时切回来；
 - **上传账号**：别人把已登录的 DSH Copilot 凭据发给你，粘贴或选文件即可用（实验性，见下）。
 
 ## 安装
@@ -36,13 +37,30 @@ dsh plugin --profile web add D:\path\to\dsh-copilot-accounts
 
 安装后重启 `dsh web`（或桌面端），打开 **设置 → Copilot 账号**。
 
+### 替代 `@lujianjun19/dsh-llm-github-copilot`
+
+功能上可以完全替换：分享登录替代 `/copilot-login`，账号列表替代 `/copilot-status`，并且提供 `/copilot-logout`。确认本插件工作正常后，可以从 profile 里移除旧插件（见下方「卸载旧插件」）。两者同时安装也不会冲突。
+
+### 卸载旧插件
+
+DSH 的 `dsh plugin` 只是转发 pnpm，**不会同步 profile 的 `dsh.profile.bundles`**。正确做法是：
+
+1. 用设置 → 插件（Plugin Manager）卸载；或
+2. 命令行移除依赖后，手动从 `~/.dsh/profiles/<profile>/package.json` 的 `dsh.profile.bundles` 数组里删掉 `@lujianjun19/dsh-llm-github-copilot`：
+
+```sh
+dsh plugin --profile desktop remove @lujianjun19/dsh-llm-github-copilot
+```
+
+然后重启 DSH。本插件自己的 bundle 条目（`dsh-copilot-accounts`）要保留。
+
 ## 使用
 
 设置页从上到下就是三个区域，**没有弹窗**，所有按钮和结果都在同一页：
 
 | 区域 | 内容 |
 |---|---|
-| 当前使用 / 已保存的账号 | 当前账号卡片和额度；右上角「保存当前账号」「刷新额度」「导出全部」；每个账号都有「导出」，非当前账号另有「切换」「删除」 |
+| 当前使用 / 已保存的账号 | 当前账号卡片和额度；右上角「保存当前账号」「刷新额度」「导出全部」「退出登录」；每个账号都有「导出」，非当前账号另有「切换」「删除」 |
 | 添加 / 分享登录 | 「生成授权链接」；生成后在同一区域显示设备代码、可复制的邀请文本、复制按钮和等待状态 |
 | 上传账号 | 粘贴框 +「导入」「选择文件」，以及一段可展开的来源说明（**未经过实际测试**，优先用分享链接） |
 
@@ -63,6 +81,7 @@ dsh plugin --profile web add D:\path\to\dsh-copilot-accounts
 /copilot-accounts        列出已保存账号
 /copilot-use <登录名|序号> 切换账号
 /copilot-save            保存当前账号
+/copilot-logout          清掉当前登录（账号仍保留）
 ```
 
 ## 上传账号：可以上传/粘贴的三样东西

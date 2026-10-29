@@ -47,7 +47,7 @@ const CREDITS_TTL_MS = 10 * 60 * 1000;
 const TOKEN_PATTERN = /\b(?:ghu_|gho_|github_pat_)[A-Za-z0-9_]{20,}\b/g;
 const CLASSIC_PAT_PATTERN = /\bghp_[A-Za-z0-9]{20,}\b/;
 
-const PLUGIN_VERSION = "0.1.4";
+const PLUGIN_VERSION = "0.1.5";
 const POLL_MIN_MS = 5000;
 const CAPTURE_DEBOUNCE_MS = 500;
 
@@ -686,6 +686,22 @@ export function apply(ctx) {
 		return { state: "idle" };
 	}
 
+	/**
+	 * Clear the harness's Copilot credential while keeping the account in the
+	 * vault, so it can be switched back without another device flow.
+	 */
+	async function logoutCurrent() {
+		await captureCurrent("before-logout").catch(() => undefined);
+		const credentials = requireCredentials();
+		const record = await readCurrentRecord();
+		const token = grantToken(record);
+		await credentials.deleteRecord(RECORD_KEY);
+		await credentials.unset(TOKEN_REF);
+		if (token !== undefined) state.credits.delete(fingerprint(token));
+		state.lastCapturedDigest = undefined;
+		return listView();
+	}
+
 	// ── wiring ───────────────────────────────────────────────────────────────
 
 	ctx.inject(["credentials"], (credentialCtx) => {
@@ -752,6 +768,7 @@ export function apply(ctx) {
 				register("/api/copilot-accounts/login/start", ["POST"], action(() => startLogin())),
 				register("/api/copilot-accounts/login/status", ["GET"], action(() => pollLogin())),
 				register("/api/copilot-accounts/login/cancel", ["POST"], action(() => cancelLogin())),
+				register("/api/copilot-accounts/logout", ["POST"], action(() => logoutCurrent())),
 			];
 			return async () => {
 				for (const dispose of disposers.reverse()) await dispose();
@@ -805,6 +822,14 @@ export function apply(ctx) {
 						const result = await saveCurrent();
 						const login = result.account.login ?? result.account.id;
 						return { kind: "success", text: `Saved ${login} (${result.account.models} models).` };
+					},
+				}),
+				register({
+					name: "copilot-logout",
+					description: "Clear the Harness Copilot credential; the account stays in the saved list",
+					handler: async () => {
+						await logoutCurrent();
+						return { kind: "success", text: "Signed out. The account is still saved and can be switched back." };
 					},
 				}),
 			];

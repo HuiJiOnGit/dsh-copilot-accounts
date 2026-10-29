@@ -389,4 +389,27 @@ test("reports premium-interaction quota per account and caches it", async () => 
 	assert.equal(quotaCalls(), beforeSwitchRead + 1);
 });
 
+test("signing out clears the credential but keeps the saved account", async () => {
+	stubGitHub();
+	const home = await newHome();
+	const credentials = makeCredentials(grant(TOKEN));
+	const host = makeHost(credentials, home);
+	await tick();
+
+	const result = await call(host, "/api/copilot-accounts/logout", "POST", {});
+	assert.equal(result.ok, true);
+
+	const snapshot = credentials.snapshot();
+	assert.equal(snapshot.record, undefined);
+	assert.equal(snapshot.refs.has(TOKEN_REF), false);
+
+	const listed = await call(host, "/api/copilot-accounts/list");
+	assert.equal(listed.value.current, null);
+	assert.equal(listed.value.accounts.length, 1);
+
+	const command = await host.commands.get("copilot-logout").handler({});
+	assert.equal(command.kind, "success");
+});
+
+
 

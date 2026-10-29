@@ -39,6 +39,11 @@ window.__ModuleLoader__.load({
         uploadWarning: "上传功能还没有经过实际测试，优先用上面的分享登录链接；上传失败的话，让对方重新发一个分享链接。",
         saveCurrent: "保存当前账号",
         exportAll: "导出全部",
+        logout: "退出登录",
+        logoutConfirm: "退出只清除 DSH 当前的登录凭据，账号仍保留在下面的列表里，随时可以切回来。",
+        logoutAction: "确认退出",
+        logoutCancel: "取消",
+        loggedOut: "已退出当前登录，账号仍保存在列表中。",
         switch: "切换",
         remove: "删除",
         switching: "切换中…",
@@ -109,6 +114,11 @@ window.__ModuleLoader__.load({
         uploadWarning: "Uploading has not been field-tested. Prefer the share sign-in link above; if an upload fails, ask for a fresh share link.",
         saveCurrent: "Save current",
         exportAll: "Export all",
+        logout: "Sign out",
+        logoutConfirm: "Signing out clears the DSH credential only; the account stays in the list and can be switched back.",
+        logoutAction: "Sign out",
+        logoutCancel: "Cancel",
+        loggedOut: "Signed out. The account is still saved.",
         switch: "Switch",
         remove: "Delete",
         switching: "Switching…",
@@ -228,6 +238,17 @@ window.__ModuleLoader__.load({
         whiteSpace: "nowrap",
       },
       warning: { margin: 0, fontSize: "12px", color: "#bf8700", lineHeight: 1.6 },
+      confirm: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        padding: "10px 12px",
+        borderRadius: "10px",
+        border: "1px dashed rgba(191,135,0,0.55)",
+        background: "rgba(191,135,0,0.06)",
+        fontSize: "12px",
+        lineHeight: 1.6,
+      },
       quota: { fontSize: "12px", opacity: 0.78 },
       meta: { fontSize: "12px", opacity: 0.62, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
       rowActions: { display: "flex", gap: "6px", flex: "0 0 auto", flexWrap: "wrap" },
@@ -429,6 +450,7 @@ window.__ModuleLoader__.load({
       const [importText, setImportText] = useState("");
       const [copied, setCopied] = useState("");
       const [credits, setCredits] = useState({});
+      const [confirmLogout, setConfirmLogout] = useState(false);
       const fileRef = useRef(null);
 
       const run = async (label, task) => {
@@ -536,6 +558,13 @@ window.__ModuleLoader__.load({
           setNotice(t("exported"));
         });
 
+      const doLogout = () =>
+        run("logout", async () => {
+          setView(await call("logout", { method: "POST", body: "{}" }));
+          setConfirmLogout(false);
+          setNotice(t("loggedOut"));
+        });
+
       const startLogin = () =>
         run("login", async () => {
           await call("login/start", { method: "POST", body: "{}" });
@@ -600,7 +629,10 @@ window.__ModuleLoader__.load({
                       jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void saveCurrent(), children: busy === "save" ? t("saving") : t("saveCurrent") }),
                       jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void run("credits", () => loadCredits(true)), children: busy === "credits" ? t("saving") : t("refreshCredits") }),
                       jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void exportAll(), children: t("exportAll") }),
-                    ],
+                      active === undefined
+                        ? null
+                        : jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "" || confirmLogout, onClick: () => setConfirmLogout(true), children: t("logout") }),
+                    ].filter(Boolean),
                   }),
                 ],
               }),
@@ -619,6 +651,27 @@ window.__ModuleLoader__.load({
                     ],
                   })
                 : jsx(AccountCard, { account: active, busy: busy === "use", credits, onUse: useAccount, onDelete: deleteAccount, onExport: exportOne }),
+              confirmLogout && active !== undefined
+                ? jsxs("div", {
+                    style: css.confirm,
+                    children: [
+                      jsx("span", { children: t("logoutConfirm") }),
+                      jsxs("div", {
+                        style: css.actions,
+                        children: [
+                          jsx(Button, {
+                            variant: "primary",
+                            size: "sm",
+                            disabled: busy !== "",
+                            onClick: () => void doLogout(),
+                            children: busy === "logout" ? t("saving") : t("logoutAction"),
+                          }),
+                          jsx(Button, { variant: "outline", size: "sm", onClick: () => setConfirmLogout(false), children: t("logoutCancel") }),
+                        ],
+                      }),
+                    ],
+                  })
+                : null,
               jsxs("div", {
                 style: { display: "flex", flexDirection: "column", gap: "8px" },
                 children: [

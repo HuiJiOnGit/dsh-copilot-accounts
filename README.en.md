@@ -19,6 +19,7 @@ This plugin keeps a portable vault of accounts for that pair:
 - **Automatic save** — every sign-in, token refresh, or external credential edit is snapshotted; the previous account is never lost.
 - **Quota at a glance** — each card shows the remaining Copilot premium requests and reset date, with a refresh button.
 - **Export** — export every account, or just one.
+- **Sign out** — clears the DSH credential while keeping the account saved.
 - **Upload** — paste a token, an account card, or a credential snippet copied from another DSH (experimental; see below).
 
 ## Install
@@ -33,17 +34,29 @@ dsh plugin --profile web add /absolute/path/to/dsh-copilot-accounts
 
 Restart DSH, then open **Settings → Copilot Accounts**.
 
+### Replacing `@lujianjun19/dsh-llm-github-copilot`
+
+This plugin covers it: share sign-in replaces `/copilot-login`, the account list replaces `/copilot-status`, and `/copilot-logout` is included. Once this plugin works, the old one can be removed. Both may stay installed without conflict.
+
+`dsh plugin` only forwards to pnpm and does **not** update the profile's `dsh.profile.bundles`. Remove the old plugin from Settings → Plugins, or remove the dependency and delete `@lujianjun19/dsh-llm-github-copilot` from that array by hand:
+
+```sh
+dsh plugin --profile desktop remove @lujianjun19/dsh-llm-github-copilot
+```
+
+Then restart DSH. Keep the `dsh-copilot-accounts` bundle entry.
+
 ## Usage
 
 The settings page is one panel with three inline sections — no dialogs:
 
 | Section | Content |
 |---|---|
-| Active / saved accounts | Active account card with its quota, **Save current**, **Refresh quota**, **Export all**, plus per-account **Export** / **Switch** / **Delete** |
+| Active / saved accounts | Active account card with its quota, **Save current**, **Refresh quota**, **Export all**, **Sign out**, plus per-account **Export** / **Switch** / **Delete** |
 | Add / share sign-in | **Generate sign-in link**; the code, the shareable text, copy buttons, and the waiting state appear in the same section |
 | Upload account | Paste box, **Import**, **Choose a file**, and an expandable guide to the accepted sources (**not field-tested**; prefer the share link) |
 
-Slash commands: `/copilot-accounts`, `/copilot-use <login|index>`, `/copilot-save`.
+Slash commands: `/copilot-accounts`, `/copilot-use <login|index>`, `/copilot-save`, `/copilot-logout`.
 
 ### Share a sign-in link
 
