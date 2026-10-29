@@ -38,7 +38,7 @@ const USER_URL = "https://api.github.com/user";
 const TOKEN_PATTERN = /\b(?:ghu_|gho_|github_pat_)[A-Za-z0-9_]{20,}\b/g;
 const CLASSIC_PAT_PATTERN = /\bghp_[A-Za-z0-9]{20,}\b/;
 
-const PLUGIN_VERSION = "0.1.0";
+const PLUGIN_VERSION = "0.1.1";
 const POLL_MIN_MS = 5000;
 const CAPTURE_DEBOUNCE_MS = 500;
 
@@ -170,6 +170,7 @@ export function apply(ctx) {
 	const vaultPath = join(harnessHome(), "copilot-accounts.json");
 	const state = {
 		flow: undefined,
+		loginTimer: undefined,
 		captureTimer: undefined,
 		captureChain: Promise.resolve(),
 		writeChain: Promise.resolve(),
@@ -340,7 +341,9 @@ export function apply(ctx) {
 				.map((account) => accountView(account, currentToken))
 				.sort((a, b) => Number(b.current) - Number(a.current)),
 			current: currentToken === undefined ? null : { id: fingerprint(currentToken), models: Array.isArray(record?.payload?.availableModelIds) ? record.payload.availableModelIds.length : 0 },
+			login: flowStatus(),
 			vaultPath,
+			credentialsPath: join(harnessHome(), ".credentials.yaml"),
 			recordKey: RECORD_KEY,
 			tokenRef: TOKEN_REF,
 		};
@@ -505,15 +508,38 @@ export function apply(ctx) {
 			state: "pending",
 			polling: false,
 		};
+		// Poll here rather than only while a settings page is open: the link is
+		// meant to be handed to someone else, and this process must finish the
+		// sign-in after the page that started it is closed.
+		ensureLoginPolling();
 		return flowStatus();
+	}
+
+	/** Keep polling the device flow on the host until it settles. */
+	function ensureLoginPolling() {
+		if (state.loginTimer !== undefined) return;
+		state.loginTimer = setInterval(() => {
+			void pollLogin().catch(() => undefined);
+		}, 2000);
+		state.loginTimer.unref?.();
+	}
+
+	function stopLoginPolling() {
+		if (state.loginTimer === undefined) return;
+		clearInterval(state.loginTimer);
+		state.loginTimer = undefined;
 	}
 
 	async function pollLogin() {
 		const flow = state.flow;
 		if (flow === undefined) return { state: "idle" };
-		if (flow.state !== "pending") return flowStatus();
+		if (flow.state !== "pending") {
+			stopLoginPolling();
+			return flowStatus();
+		}
 		if (Date.now() > flow.expiresAt) {
 			flow.state = "expired";
+			stopLoginPolling();
 			return flowStatus();
 		}
 		if (flow.polling || Date.now() - flow.lastPollAt < flow.interval) return flowStatus();
@@ -550,6 +576,7 @@ export function apply(ctx) {
 		} finally {
 			flow.polling = false;
 		}
+		if (flow.state !== "pending") stopLoginPolling();
 		return flowStatus();
 	}
 
@@ -574,6 +601,7 @@ export function apply(ctx) {
 
 	function cancelLogin() {
 		state.flow = undefined;
+		stopLoginPolling();
 		return { state: "idle" };
 	}
 
@@ -602,6 +630,7 @@ export function apply(ctx) {
 					offRecord?.();
 					offRef?.();
 					clearInterval(poll);
+					stopLoginPolling();
 					if (state.captureTimer !== undefined) clearTimeout(state.captureTimer);
 				};
 			},

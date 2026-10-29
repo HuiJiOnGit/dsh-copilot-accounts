@@ -1,6 +1,6 @@
 {
   "name": "dsh-copilot-accounts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Save, switch, and share GitHub Copilot accounts for the DeepSeek Harness Copilot route.",
   "type": "module",
   "license": "MIT",

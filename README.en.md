@@ -22,7 +22,7 @@ This plugin keeps a portable vault of accounts for that pair:
 
 ## Install
 
-Requires a working DSH with `@lujianjun19/dsh-llm-github-copilot` (the sign-in UI and `/copilot-login`). This plugin manages accounts; that one performs sign-in.
+Standalone: this plugin runs the GitHub device flow itself and only needs the `llm-pi-ai` Copilot route that ships with DSH. It does **not** require `@lujianjun19/dsh-llm-github-copilot`; if that plugin is installed too, both coexist.
 
 ```sh
 dsh plugin --profile web add github:HuiJiOnGit/dsh-copilot-accounts
@@ -37,21 +37,46 @@ Restart DSH, then open **Settings → Copilot Accounts**.
 | Button | Effect |
 |---|---|
 | **Save current** | Stores the signed-in account (usually automatic) |
-| **Add account** | GitHub device flow; the current account is saved first and stays signed in |
+| **Add account / share sign-in** | Creates one authorization link you can send to someone else; they authorize in their own browser, and the account is added and switched here |
 | **Upload account** | Paste a token / account card / credential snippet, or pick a file |
 | **Export all** | Downloads every account as JSON |
 
 Slash commands: `/copilot-accounts`, `/copilot-use <login|index>`, `/copilot-save`.
 
-## Sharing an account
+### Share a sign-in link
 
-1. On the machine that is signed in: **Export all** → `copilot-accounts-*.json`.
-2. Send that file (or its content).
-3. On the target machine: **Upload account** → paste or pick the file.
+1. **Add account / share sign-in** → **Copy invite (link + code)**.
+2. Send it to the other person.
+3. They open `https://github.com/login/device`, enter the code, and authorize.
+4. The account is added and switched here automatically. Closing the dialog does not cancel the wait.
 
-A bare `ghu_` / `gho_` / `github_pat_` token also works: the plugin builds the grant record for you. Classic `ghp_` PATs are rejected by the Copilot API and by this plugin.
+## Uploading an account
 
-The vault lives at `%USERPROFILE%\.dsh\copilot-accounts.json` (or `~/.dsh/...`, following `DSH_HOME`), mode `0600`, plaintext tokens — treat it like `~/.dsh/.credentials.yaml`.
+Three things are accepted:
+
+| Source | What it is | Where it lives |
+|---|---|---|
+| Account card | `copilot-accounts-<date>.json` | Downloaded from **Export all** on another machine |
+| DSH credentials file | The two entries below, or the whole file | `C:\Users\<name>\.dsh\.credentials.yaml` on Windows, `~/.dsh/.credentials.yaml` elsewhere |
+| A long-lived token | `ghu_…` (`gho_`, `github_pat_` also work) | The `refs.GITHUB_COPILOT_OAUTH_TOKEN` value in that file |
+
+The two entries, when copying by hand:
+
+```yaml
+refs:
+  GITHUB_COPILOT_OAUTH_TOKEN: ghu_xxx
+
+records:
+  llm-pi-ai/github-copilot:
+    kind: grant
+    payload:
+      type: oauth
+      refresh: ghu_xxx
+```
+
+Only `ghu_` / `gho_` / `github_pat_` tokens are extracted; other provider keys in the file are ignored. Classic `ghp_` PATs are rejected by the Copilot API and by this plugin.
+
+The vault lives at `%USERPROFILE%\.dsh\copilot-accounts.json` (or `~/.dsh/...`, following `DSH_HOME`), mode `0600`, plaintext tokens — treat it like `~/.dsh/.credentials.yaml`. Both paths are shown at the bottom of the settings page.
 
 ## Switching semantics
 

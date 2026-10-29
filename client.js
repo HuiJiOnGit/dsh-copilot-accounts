@@ -2,15 +2,15 @@
  * dsh-copilot-accounts — Client half.
  *
  * One Settings page: the active account, the saved accounts, one-click
- * switching, device-flow sign-in for a new account, and import/export of
- * portable account cards.
+ * switching, a shareable device-flow sign-in, and upload/export of portable
+ * account cards.
  */
 window.__ModuleLoader__.load({
   id: "dsh-copilot-accounts",
   factory(require) {
     const React = require("react");
     const { jsx, jsxs, Fragment } = require("react/jsx-runtime");
-    const { Button, Modal } = require("@deepseek-ai/dsh-client-ui-primitives");
+    const { Button, Modal, writeClipboard } = require("@deepseek-ai/dsh-client-ui-primitives");
     const { useEffect, useRef, useState } = React;
 
     const API = "/api/copilot-accounts";
@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({
       zh: {
         nav: "Copilot 账号",
         title: "GitHub Copilot 账号",
-        intro: "保存多个已登录的 Copilot 账号，点一下即可切换。切换只改 DSH 的凭据，不会退出 GitHub。",
+        intro: "保存多个已登录的 Copilot 账号，点一下即可切换。切换只改 DSH 的凭据，不会退出 GitHub；登录链接可以直接发给别人，让对方在自己的浏览器里授权。",
         loading: "加载中…",
         current: "当前使用",
         none: "当前没有已登录的 Copilot 账号。",
@@ -28,7 +28,7 @@ window.__ModuleLoader__.load({
         saved: "已保存的账号",
         empty: "还没有保存过账号。登录一个账号后会自动保存。",
         saveCurrent: "保存当前账号",
-        addAccount: "添加账号",
+        addAccount: "添加账号 / 分享登录",
         upload: "上传账号",
         exportAll: "导出全部",
         switch: "切换",
@@ -37,24 +37,32 @@ window.__ModuleLoader__.load({
         saving: "保存中…",
         models: "个模型",
         lastUsed: "上次使用",
-        savedAt: "保存于",
         currentBadge: "当前",
-        loginTitle: "登录新的 Copilot 账号",
-        loginDesc: "在浏览器里打开 GitHub 并输入下面的代码。当前账号会先自动保存，不会被退出。",
+        loginTitle: "添加一个 Copilot 账号",
+        loginDesc: "把下面的链接和代码发给对方，让对方在自己的浏览器里打开并授权。你不需要退出自己的 GitHub 账号；授权完成后这里会自动添加并切换。",
         code: "设备代码",
-        openGitHub: "打开 GitHub 授权页",
-        waiting: "等待授权…",
-        loginDone: "已登录并保存新账号。",
+        openGitHub: "在本机打开",
+        waiting: "等待对方授权…（15 分钟内有效）",
+        loginDone: "已添加并切换到新账号。",
         retry: "重试",
         close: "关闭",
         cancel: "取消",
+        cancelFlow: "取消这次登录",
+        copyCode: "复制代码",
+        copyLink: "复制链接",
+        copyInvite: "复制邀请（链接 + 代码）",
+        copied: "已复制",
+        copyFailed: "复制失败，请手动选中复制",
+        shareNote: "发给对方的内容：",
+        pendingTitle: "有一个等待授权的登录",
+        pendingView: "查看邀请",
+        shareLoginHint: "对方打开链接输入代码即可，不需要知道你的账号。",
         importTitle: "上传账号",
-        importDesc: "粘贴 token、账号卡片，或从另一台 DSH 复制的凭据片段；也可以选择文件。",
-        importPlaceholder: "粘贴 ghu_ / gho_ / github_pat_ token，或 {\"accounts\":[…]} 账号卡片",
+        importDesc: "支持三种来源：本插件的账号卡片、DSH 凭据文件、或一个长效 token。",
+        importPlaceholder: "在这里粘贴：账号卡片 JSON / .credentials.yaml 内容 / ghu_ 开头的 token",
         importAction: "导入",
         importing: "导入中…",
         chooseFile: "选择文件…",
-        importHint: "支持：账号卡片 JSON、DSH 的 .credentials.yaml 片段、纯 token。ghp_ 经典 PAT 不可用。",
         imported: "已导入 {n} 个账号。",
         exported: "已导出全部账号。",
         savedCurrent: "已保存当前账号。",
@@ -62,12 +70,23 @@ window.__ModuleLoader__.load({
         deleted: "已删除该账号。",
         error: "出错了：{message}",
         vault: "账号文件",
+        credentials: "DSH 凭据文件",
         security: "账号文件里是明文 token，请只放在自己的电脑上。",
+        helpTitle: "不知道要上传什么？点开看",
+        help1Title: "方式 1 · 对方也装了本插件（最省事）",
+        help1Body: "对方打开 设置 → Copilot 账号 → 导出全部，得到 copilot-accounts-日期.json，发给你；你把内容粘贴到上面，或点“选择文件”选中它。",
+        help2Title: "方式 2 · 对方没装插件",
+        help2Body: "让对方打开自己的 DSH 凭据文件，把 refs 里的 GITHUB_COPILOT_OAUTH_TOKEN 那一行，和 records 里的 llm-pi-ai/github-copilot 整段复制给你；把整份文件直接粘贴进来也可以。",
+        help3Title: "方式 3 · 只有 token",
+        help3Body: "直接粘贴 ghu_ 开头的长效 token（gho_ / github_pat_ 也行）。不需要复制 access / expires。",
+        helpPaths: "对方机器的路径通常是：C:\\Users\\<用户名>\\.dsh\\.credentials.yaml（macOS/Linux：~/.dsh/.credentials.yaml）。本机路径见下方。",
+        acceptHint: "支持 .json / .yaml / .yml / .txt",
+        closeHint: "关掉这个窗口不会中断等待；授权完成后账号会自动加入列表。",
       },
       en: {
         nav: "Copilot Accounts",
         title: "GitHub Copilot Accounts",
-        intro: "Keep several signed-in Copilot accounts and switch with one click. Switching only rewrites DSH credentials; it never signs you out of GitHub.",
+        intro: "Keep several signed-in Copilot accounts and switch with one click. Switching only rewrites DSH credentials; it never signs you out of GitHub. The sign-in link can be sent to someone else so they authorize in their own browser.",
         loading: "Loading…",
         current: "Active",
         none: "No Copilot account is signed in right now.",
@@ -75,7 +94,7 @@ window.__ModuleLoader__.load({
         saved: "Saved accounts",
         empty: "Nothing saved yet. Signing in saves the account automatically.",
         saveCurrent: "Save current",
-        addAccount: "Add account",
+        addAccount: "Add account / share sign-in",
         upload: "Upload account",
         exportAll: "Export all",
         switch: "Switch",
@@ -84,24 +103,32 @@ window.__ModuleLoader__.load({
         saving: "Saving…",
         models: "models",
         lastUsed: "Last used",
-        savedAt: "Saved",
         currentBadge: "active",
-        loginTitle: "Sign in a new Copilot account",
-        loginDesc: "Open GitHub in your browser and enter the code below. The current account is saved first and stays signed in.",
+        loginTitle: "Add a Copilot account",
+        loginDesc: "Send the link and code below to the other person; they open it in their own browser and authorize. You do not need to sign out of GitHub. The account is added and switched automatically when they finish.",
         code: "Device code",
-        openGitHub: "Open GitHub",
-        waiting: "Waiting for authorization…",
-        loginDone: "Signed in and saved.",
+        openGitHub: "Open here",
+        waiting: "Waiting for authorization… (valid for 15 minutes)",
+        loginDone: "Account added and switched.",
         retry: "Retry",
         close: "Close",
         cancel: "Cancel",
+        cancelFlow: "Cancel this sign-in",
+        copyCode: "Copy code",
+        copyLink: "Copy link",
+        copyInvite: "Copy invite (link + code)",
+        copied: "Copied",
+        copyFailed: "Copy failed — select and copy manually",
+        shareNote: "Send this to the other person:",
+        pendingTitle: "A sign-in is waiting for authorization",
+        pendingView: "Show invite",
+        shareLoginHint: "They only need the link and code; they never see your account.",
         importTitle: "Upload account",
-        importDesc: "Paste a token, an account card, or a credential snippet copied from another DSH; or pick a file.",
-        importPlaceholder: "ghu_ / gho_ / github_pat_ token, or {\"accounts\":[…]} card",
+        importDesc: "Three sources work: this plugin's account card, a DSH credentials file, or one long-lived token.",
+        importPlaceholder: "Paste an account-card JSON / .credentials.yaml content / a ghu_ token here",
         importAction: "Import",
         importing: "Importing…",
         chooseFile: "Choose a file…",
-        importHint: "Accepts account-card JSON, a DSH .credentials.yaml snippet, or a bare token. Classic ghp_ PATs are rejected.",
         imported: "Imported {n} account(s).",
         exported: "Exported every account.",
         savedCurrent: "Current account saved.",
@@ -109,7 +136,18 @@ window.__ModuleLoader__.load({
         deleted: "Account deleted.",
         error: "Something failed: {message}",
         vault: "Account file",
+        credentials: "DSH credentials file",
         security: "The account file holds plaintext tokens; keep it on your own machine.",
+        helpTitle: "Not sure what to upload? Open this",
+        help1Title: "Option 1 · the other side also runs this plugin",
+        help1Body: "They open Settings → Copilot Accounts → Export all, get copilot-accounts-<date>.json, and send it to you. Paste it above or use “Choose a file”.",
+        help2Title: "Option 2 · they do not run the plugin",
+        help2Body: "Ask them to open their DSH credentials file and copy the GITHUB_COPILOT_OAUTH_TOKEN line under refs plus the whole llm-pi-ai/github-copilot block under records. Pasting the entire file also works.",
+        help3Title: "Option 3 · just a token",
+        help3Body: "Paste a long-lived ghu_ token (gho_ / github_pat_ also work). No need to copy access or expires.",
+        helpPaths: "On their machine the file is usually C:\\Users\\<name>\\.dsh\\.credentials.yaml (macOS/Linux: ~/.dsh/.credentials.yaml). This machine's paths are below.",
+        acceptHint: ".json / .yaml / .yml / .txt",
+        closeHint: "Closing this dialog does not interrupt the wait; the account joins the list when authorization finishes.",
       },
     };
 
@@ -165,6 +203,17 @@ window.__ModuleLoader__.load({
       rowActions: { display: "flex", gap: "6px", flex: "0 0 auto" },
       notice: { fontSize: "12px", color: "#2da44e" },
       error: { fontSize: "12px", color: "#d1242f", whiteSpace: "pre-wrap" },
+      pending: {
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        flexWrap: "wrap",
+        padding: "10px 12px",
+        borderRadius: "10px",
+        border: "1px dashed rgba(31,111,235,0.55)",
+        background: "rgba(31,111,235,0.06)",
+        fontSize: "13px",
+      },
       modalBody: { display: "flex", flexDirection: "column", gap: "12px" },
       textarea: {
         width: "100%",
@@ -201,7 +250,40 @@ window.__ModuleLoader__.load({
         textAlign: "center",
         userSelect: "all",
       },
-      footer: { fontSize: "11px", opacity: 0.5, lineHeight: 1.5, wordBreak: "break-all" },
+      shareBox: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        padding: "10px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(127,127,127,0.28)",
+        background: "rgba(127,127,127,0.05)",
+      },
+      shareText: {
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: "12px",
+        lineHeight: 1.6,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-all",
+        userSelect: "all",
+      },
+      inlineRow: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" },
+      help: {
+        borderRadius: "8px",
+        border: "1px solid rgba(127,127,127,0.28)",
+        padding: "8px 10px",
+        fontSize: "12px",
+        lineHeight: 1.6,
+      },
+      helpSummary: { cursor: "pointer", fontWeight: 600 },
+      helpBody: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", opacity: 0.85 },
+      path: {
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: "11px",
+        wordBreak: "break-all",
+        opacity: 0.7,
+      },
+      footer: { fontSize: "11px", opacity: 0.55, lineHeight: 1.6, display: "flex", flexDirection: "column", gap: "2px" },
     };
 
     async function call(path, init) {
@@ -236,6 +318,20 @@ window.__ModuleLoader__.load({
       anchor.download = name;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function inviteText(flow) {
+      const url = flow?.verificationUri || "https://github.com/login/device";
+      const code = flow?.userCode ?? "";
+      return LANG === "zh"
+        ? `请打开 ${url} 并输入代码 ${code}，完成 GitHub Copilot 授权（15 分钟内有效）。`
+        : `Open ${url} and enter code ${code} to authorize GitHub Copilot (valid for 15 minutes).`;
+    }
+
+    function inviteLink(flow) {
+      const url = flow?.verificationUri || "https://github.com/login/device";
+      if (!flow?.userCode) return url;
+      return `${url}?user_code=${encodeURIComponent(flow.userCode)}`;
     }
 
     function AccountCard({ account, busy, onUse, onDelete }) {
@@ -295,6 +391,7 @@ window.__ModuleLoader__.load({
       const [importText, setImportText] = useState("");
       const [loginOpen, setLoginOpen] = useState(false);
       const [flow, setFlow] = useState({ state: "idle" });
+      const [copied, setCopied] = useState("");
       const fileRef = useRef(null);
 
       const run = async (label, task) => {
@@ -313,9 +410,12 @@ window.__ModuleLoader__.load({
 
       const refresh = async () => {
         try {
-          setView(await call("list"));
+          const next = await call("list");
+          setView(next);
+          return next;
         } catch (failure) {
           setError(t("error", { message: failure instanceof Error ? failure.message : String(failure) }));
+          return undefined;
         }
       };
 
@@ -323,22 +423,63 @@ window.__ModuleLoader__.load({
         void refresh();
       }, []);
 
+      // While a shared sign-in is waiting, keep the page in sync with the host.
+      useEffect(() => {
+        if (view?.login?.state !== "pending") return undefined;
+        const timer = setInterval(async () => {
+          try {
+            const next = await call("list");
+            setView(next);
+            if (next.login?.state === "done") setNotice(t("loginDone"));
+          } catch {
+            // transient failure: the host keeps polling regardless
+          }
+        }, 3000);
+        return () => clearInterval(timer);
+      }, [view?.login?.state]);
+
+      // The dialog mirrors the host flow.
+      useEffect(() => {
+        if (view?.login?.state === "pending") setFlow(view.login);
+      }, [view?.login?.state]);
+
       useEffect(() => {
         if (!loginOpen || flow.state !== "pending") return undefined;
+        let cancelled = false;
         const timer = setInterval(async () => {
           try {
             const next = await call("login/status");
+            if (cancelled) return;
             setFlow(next);
             if (next.state === "done") {
               setNotice(t("loginDone"));
               await refresh();
             }
           } catch {
-            // transient poll failure: keep the dialog open
+            // keep the dialog open on a transient poll failure
           }
         }, 2000);
-        return () => clearInterval(timer);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
       }, [loginOpen, flow.state]);
+
+      const copy = async (kind, text) => {
+        try {
+          const ok = await writeClipboard(text);
+          setCopied(ok ? kind : "");
+          if (!ok) setError(t("copyFailed"));
+        } catch {
+          setError(t("copyFailed"));
+        }
+      };
+
+      useEffect(() => {
+        if (copied === "") return undefined;
+        const timer = setTimeout(() => setCopied(""), 2000);
+        return () => clearTimeout(timer);
+      }, [copied]);
 
       const saveCurrent = () =>
         run("save", async () => {
@@ -368,19 +509,18 @@ window.__ModuleLoader__.load({
 
       const startLogin = () =>
         run("login", async () => {
-          setFlow(await call("login/start", { method: "POST", body: "{}" }));
+          const next = await call("login/start", { method: "POST", body: "{}" });
+          setFlow(next);
           setLoginOpen(true);
         });
 
-      const cancelLogin = async () => {
-        setLoginOpen(false);
-        try {
+      const cancelFlow = () =>
+        run("cancel", async () => {
           await call("login/cancel", { method: "POST", body: "{}" });
-        } catch {
-          // the dialog is already closed
-        }
-        setFlow({ state: "idle" });
-      };
+          setFlow({ state: "idle" });
+          setLoginOpen(false);
+          await refresh();
+        });
 
       const doImport = () =>
         run("import", async () => {
@@ -404,6 +544,7 @@ window.__ModuleLoader__.load({
 
       const accounts = view.accounts ?? [];
       const active = accounts.find((account) => account.current);
+      const pending = view.login?.state === "pending" ? view.login : null;
 
       return jsxs("div", {
         style: css.page,
@@ -424,6 +565,24 @@ window.__ModuleLoader__.load({
               jsx(Button, { variant: "outline", disabled: busy !== "", onClick: () => void exportAll(), children: t("exportAll") }),
             ],
           }),
+          pending
+            ? jsxs("div", {
+                style: css.pending,
+                children: [
+                  jsx("span", { children: `${t("pendingTitle")}: ${pending.userCode ?? ""}` }),
+                  jsx(Button, {
+                    variant: "outline",
+                    size: "sm",
+                    onClick: () => {
+                      setFlow(pending);
+                      setLoginOpen(true);
+                    },
+                    children: t("pendingView"),
+                  }),
+                  jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void cancelFlow(), children: t("cancelFlow") }),
+                ],
+              })
+            : null,
           notice.length > 0 ? jsx("div", { style: css.notice, children: notice }) : null,
           error.length > 0 ? jsx("div", { style: css.error, children: error }) : null,
           jsxs("div", {
@@ -462,39 +621,87 @@ window.__ModuleLoader__.load({
           }),
           jsxs("div", {
             style: css.footer,
-            children: [jsx("div", { children: `${t("vault")}: ${view.vaultPath}` }), jsx("div", { children: t("security") })],
+            children: [
+              jsx("div", { children: `${t("vault")}: ${view.vaultPath}` }),
+              jsx("div", { children: `${t("credentials")}: ${view.credentialsPath}` }),
+              jsx("div", { children: t("security") }),
+            ],
           }),
           jsx(Modal, {
             open: loginOpen,
-            onClose: () => void cancelLogin(),
+            onClose: () => setLoginOpen(false),
             title: t("loginTitle"),
             description: t("loginDesc"),
             closeLabel: t("close"),
             footer: jsxs(Fragment, {
               children: [
-                jsx(Button, { variant: "outline", onClick: () => void cancelLogin(), children: t("close") }),
+                jsx(Button, { variant: "outline", onClick: () => setLoginOpen(false), children: t("close") }),
+                flow.state === "pending"
+                  ? jsx(Button, { variant: "outline", onClick: () => void copy("invite", inviteText(flow)), children: copied === "invite" ? t("copied") : t("copyInvite") })
+                  : null,
                 jsx(Button, {
-                  variant: "primary",
+                  variant: "outline",
                   onClick: () => {
                     if (flow.verificationUri) globalThis.open(flow.verificationUri, "_blank", "noopener,noreferrer");
                   },
-                  disabled: !flow.verificationUri,
+                  disabled: !flow.verificationUri || flow.state !== "pending",
                   children: t("openGitHub"),
                 }),
-              ],
+                flow.state === "pending"
+                  ? jsx(Button, { variant: "outline", onClick: () => void cancelFlow(), children: t("cancelFlow") })
+                  : null,
+              ].filter(Boolean),
             }),
             children: jsxs("div", {
               style: css.modalBody,
-              children: [
+              children:
                 flow.state === "done"
                   ? jsx("div", { style: css.notice, children: t("loginDone") })
-                  : jsxs(Fragment, {
-                      children: [
-                        jsx("div", { style: css.code, children: flow.userCode ?? "…" }),
-                        jsx("div", { style: css.hint, children: flow.state === "error" ? flow.error : t("waiting") }),
-                      ],
-                    }),
-              ],
+                  : flow.state === "error" || flow.state === "expired" || flow.state === "denied"
+                    ? jsx("div", { style: css.error, children: flow.error ?? flow.state })
+                    : jsxs(Fragment, {
+                        children: [
+                          jsxs("div", {
+                            style: css.inlineRow,
+                            children: [
+                              jsx("div", { style: { ...css.code, flex: 1 }, children: flow.userCode ?? "…" }),
+                              jsx(Button, {
+                                variant: "outline",
+                                size: "sm",
+                                onClick: () => void copy("code", flow.userCode ?? ""),
+                                children: copied === "code" ? t("copied") : t("copyCode"),
+                              }),
+                            ],
+                          }),
+                          jsxs("div", {
+                            style: css.shareBox,
+                            children: [
+                              jsx("div", { style: css.hint, children: t("shareNote") }),
+                              jsx("div", { style: css.shareText, children: inviteText(flow) }),
+                              jsxs("div", {
+                                style: css.inlineRow,
+                                children: [
+                                  jsx(Button, {
+                                    variant: "primary",
+                                    size: "sm",
+                                    onClick: () => void copy("invite", inviteText(flow)),
+                                    children: copied === "invite" ? t("copied") : t("copyInvite"),
+                                  }),
+                                  jsx(Button, {
+                                    variant: "outline",
+                                    size: "sm",
+                                    onClick: () => void copy("link", inviteLink(flow)),
+                                    children: copied === "link" ? t("copied") : t("copyLink"),
+                                  }),
+                                ],
+                              }),
+                              jsx("div", { style: css.hint, children: t("shareLoginHint") }),
+                            ],
+                          }),
+                          jsx("div", { style: css.hint, children: t("waiting") }),
+                          jsx("div", { style: css.hint, children: t("closeHint") }),
+                        ],
+                      }),
             }),
           }),
           jsx(Modal, {
@@ -525,11 +732,10 @@ window.__ModuleLoader__.load({
                   spellCheck: false,
                 }),
                 jsxs("div", {
-                  style: css.hint,
+                  style: css.inlineRow,
                   children: [
-                    t("importHint"),
-                    " ",
-                    jsx("button", { type: "button", style: css.link, onClick: () => fileRef.current?.click(), children: t("chooseFile") }),
+                    jsx(Button, { variant: "outline", size: "sm", onClick: () => fileRef.current?.click(), children: t("chooseFile") }),
+                    jsx("span", { style: css.hint, children: t("acceptHint") }),
                   ],
                 }),
                 jsx("input", {
@@ -538,6 +744,40 @@ window.__ModuleLoader__.load({
                   accept: ".json,.yaml,.yml,.txt",
                   style: { display: "none" },
                   onChange: (event) => void onFile(event),
+                }),
+                jsxs("details", {
+                  style: css.help,
+                  children: [
+                    jsx("summary", { style: css.helpSummary, children: t("helpTitle") }),
+                    jsxs("div", {
+                      style: css.helpBody,
+                      children: [
+                        jsxs("div", {
+                          children: [
+                            jsx("div", { style: { fontWeight: 600 }, children: t("help1Title") }),
+                            jsx("div", { children: t("help1Body") }),
+                          ],
+                        }),
+                        jsxs("div", {
+                          children: [
+                            jsx("div", { style: { fontWeight: 600 }, children: t("help2Title") }),
+                            jsx("div", { children: t("help2Body") }),
+                          ],
+                        }),
+                        jsxs("div", {
+                          children: [
+                            jsx("div", { style: { fontWeight: 600 }, children: t("help3Title") }),
+                            jsx("div", { children: t("help3Body") }),
+                          ],
+                        }),
+                        jsx("div", { style: css.hint, children: t("helpPaths") }),
+                        jsxs("div", {
+                          style: css.path,
+                          children: [jsx("div", { children: `${t("credentials")}: ${view.credentialsPath}` }), jsx("div", { children: `${t("vault")}: ${view.vaultPath}` })],
+                        }),
+                      ],
+                    }),
+                  ],
                 }),
               ],
             }),

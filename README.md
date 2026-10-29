@@ -17,7 +17,7 @@ DSH 内置的 `github-copilot` 路由只认识一份凭据（`llm-pi-ai/github-c
 
 ## 安装
 
-要求 DSH 已经装好并带 `@lujianjun19/dsh-llm-github-copilot`（负责登录 UI / `/copilot-login`），本插件负责多账号管理。二者配合使用，互不冲突。
+**不依赖** `@lujianjun19/dsh-llm-github-copilot`。本插件自己完成 GitHub 设备流登录，只依赖 DSH 内置的 `llm-pi-ai` 路由（默认已挂载）。如果那个插件也装着，两者共存：它提供 `/copilot-login`，本插件负责多账号管理。
 
 ### 从 GitHub 安装
 
@@ -42,13 +42,22 @@ dsh plugin --profile web add D:\path\to\dsh-copilot-accounts
 | 按钮 | 作用 |
 |---|---|
 | **保存当前账号** | 把当前登录的账号存进账号文件（通常不需要点，登录后会自动存） |
-| **添加账号** | 走 GitHub 设备流登录一个新号；**当前账号会先自动保存**，不会被退出 |
+| **添加账号 / 分享登录** | 生成一次授权链接；可以自己用，也可以**复制发给别人**，对方在自己的浏览器里授权即可，你不需要退出自己的 GitHub 账号 |
 | **上传账号** | 粘贴 token / 账号卡片 / 凭据片段，或选择文件 |
 | **导出全部** | 下载包含所有账号的 JSON，用于备份或换电脑 |
 
 账号列表里每个非当前账号都有「切换」「删除」。切换只改 DSH 的凭据，不会影响 GitHub 网页登录状态，也不会影响别人。
 
-斜杠命令（无图形界面时可用）：
+### 分享登录链接（推荐给别人用）
+
+1. 点 **添加账号 / 分享登录**，弹窗里有「设备代码」和一段可分享的话；
+2. 点 **复制邀请（链接 + 代码）**，把内容发给对方；
+3. 对方在自己浏览器打开 `https://github.com/login/device`，输入代码并授权；
+4. 你这边自动完成：账号加入列表并切换。**不要求对方装任何东西，也不用你退出自己的 GitHub 账号。**
+
+弹窗里的「复制链接」给的是带 `?user_code=` 的直达链接，方便对方少输一次。关掉弹窗不会中断等待；想放弃就点「取消这次登录」。等待期间设置页顶部会有一条提示。
+
+### 斜杠命令（无图形界面时）
 
 ```
 /copilot-accounts        列出已保存账号
@@ -56,23 +65,15 @@ dsh plugin --profile web add D:\path\to\dsh-copilot-accounts
 /copilot-save            保存当前账号
 ```
 
-## 分享 / 搬运账号：到底复制什么
+## 上传账号：可以上传/粘贴的三样东西
 
-### 方式 A：用插件导出（推荐，最简单）
+| 来源 | 具体是什么 | 在哪里 |
+|---|---|---|
+| 本插件导出的账号卡片 | `copilot-accounts-2026-10-29.json` | 对方点「导出全部」下载得到；你「选择文件」选中，或把内容粘进输入框 |
+| DSH 凭据文件（对方没装插件） | 下面那段 YAML 片段，或整份 `.credentials.yaml` | Windows：`C:\Users\<用户名>\.dsh\.credentials.yaml`；macOS/Linux：`~/.dsh/.credentials.yaml`（装了多个 profile 也一样，凭据是全局一份） |
+| 一个长效 token | `ghu_…`（或 `gho_`、`github_pat_`） | 对方凭据文件里 `refs.GITHUB_COPILOT_OAUTH_TOKEN` 的值；也可由对方从别处复制 |
 
-1. 在**已有登录的机器**上打开 设置 → Copilot 账号 → **导出全部**，得到一个 `copilot-accounts-*.json`；
-2. 把这个文件发给对方（或拷到家里电脑）；
-3. 对方打开 设置 → Copilot 账号 → **上传账号** → 选择文件 / 直接粘贴内容。
-
-文件里是明文 token，传输时请注意渠道。
-
-### 方式 B：只给 token
-
-对方只需要一个长效 GitHub token（`ghu_` 开头，或 `gho_`、`github_pat_`）。把它粘贴到「上传账号」即可，插件会自动补全成凭据记录。
-
-### 方式 C：手工从 DSH 凭据文件复制
-
-如果对方不用这个插件，也可以手工复制 `~/.dsh/.credentials.yaml` 里的两段：
+从凭据文件里要复制的是这两段（整份文件直接粘贴也行）：
 
 ```yaml
 refs:
@@ -86,11 +87,11 @@ records:
       refresh: ghu_xxx
 ```
 
-复制整段（或整个文件）粘贴到「上传账号」都能识别。插件只提取 `ghu_` / `gho_` / `github_pat_` 开头的 token，不会碰文件里其他 provider 的密钥。
+插件只提取 `ghu_` / `gho_` / `github_pat_` 开头的 token，不会碰文件里其他 provider 的密钥（`DEEPSEEK_API_KEY`、`STEP_API_KEY` 等）。
 
 > 不需要复制 `access` / `expires` / `availableModelIds`：切换后 DSH 会用 `refresh` 自动换出短期 token 并重建模型列表。
 
-### 放在哪个目录
+### 账号存在哪个目录
 
 不用手动放。导入后账号存在：
 
@@ -99,7 +100,7 @@ records:
 ~/.dsh/copilot-accounts.json                  # macOS / Linux
 ```
 
-（`DSH_HOME` 被改过时跟随 `DSH_HOME`。）这个文件只有你当前系统用户可读。
+（`DSH_HOME` 被改过时跟随 `DSH_HOME`。）这个文件只有你当前系统用户可读。设置页底部会显示本机的这两个路径。
 
 ## 切号后会发生什么
 

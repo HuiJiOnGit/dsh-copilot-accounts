@@ -290,3 +290,23 @@ test("slash commands list and switch accounts", async () => {
 	const missing = await host.commands.get("copilot-use").handler({ rawInput: "nobody" });
 	assert.equal(missing.kind, "error");
 });
+
+test("the host finishes a shared sign-in even when no page polls", async () => {
+	stubGitHub({ login: "Shared", deviceToken: OTHER });
+	const home = await newHome();
+	const credentials = makeCredentials(grant(TOKEN));
+	const host = makeHost(credentials, home);
+	await tick();
+
+	// Start the flow, then never call login/status: the host timer must settle it,
+	// because the link is meant to be handed to someone else after the page closes.
+	const started = await call(host, "/api/copilot-accounts/login/start", "POST", {});
+	assert.equal(started.value.state, "pending");
+
+	await new Promise((resolve) => setTimeout(resolve, 2600));
+	assert.equal(credentials.snapshot().record.payload.refresh, OTHER);
+
+	const listed = await call(host, "/api/copilot-accounts/list");
+	assert.equal(listed.value.login.state, "done");
+});
+
