@@ -29,10 +29,11 @@ window.__ModuleLoader__.load({
         empty: "还没有保存过账号。登录一个账号后会自动保存。",
         exportOne: "导出",
         refreshCredits: "刷新额度",
-        quota: "额度 {remaining}/{entitlement}",
+        quota: "剩余 {remaining} / {entitlement}",
+        quotaUsed: "已用 {used}",
         quotaUnlimited: "额度无限",
         quotaUnavailable: "额度不可用",
-        quotaReset: "· {date} 重置",
+        quotaReset: "{date} 重置",
         recommended: "推荐",
         uploadBadge: "未经过实际测试",
         uploadWarning: "上传功能还没有经过实际测试，优先用上面的分享登录链接；上传失败的话，让对方重新发一个分享链接。",
@@ -98,10 +99,11 @@ window.__ModuleLoader__.load({
         empty: "Nothing saved yet. Signing in saves the account automatically.",
         exportOne: "Export",
         refreshCredits: "Refresh quota",
-        quota: "Quota {remaining}/{entitlement}",
+        quota: "Remaining {remaining} / {entitlement}",
+        quotaUsed: "used {used}",
         quotaUnlimited: "Unlimited quota",
         quotaUnavailable: "Quota unavailable",
-        quotaReset: "· resets {date}",
+        quotaReset: "resets {date}",
         recommended: "Recommended",
         uploadBadge: "Not field-tested",
         uploadWarning: "Uploading has not been field-tested. Prefer the share sign-in link above; if an upload fails, ask for a fresh share link.",
@@ -354,8 +356,10 @@ window.__ModuleLoader__.load({
       if (quota.error) return t("quotaUnavailable");
       if (quota.unlimited) return t("quotaUnlimited");
       if (quota.remaining !== undefined && quota.entitlement !== undefined) {
-        const text = t("quota", { remaining: formatNumber(quota.remaining), entitlement: formatNumber(quota.entitlement) });
-        return quota.resetDate ? `${text} ${t("quotaReset", { date: quota.resetDate })}` : text;
+        const parts = [t("quota", { remaining: formatNumber(quota.remaining), entitlement: formatNumber(quota.entitlement) })];
+        if (quota.used !== undefined) parts.push(t("quotaUsed", { used: formatNumber(quota.used) }));
+        if (quota.resetDate) parts.push(t("quotaReset", { date: quota.resetDate }));
+        return parts.join(" · ");
       }
       return undefined;
     }

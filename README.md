@@ -117,7 +117,7 @@ records["llm-pi-ai/github-copilot"]  = { type: oauth, refresh: 目标 token, acc
 
 ## 账号额度（premium requests）
 
-账号卡片会显示 Copilot premium requests 的剩余量，例如 `额度 9751.6/10000 · 2026-11-01 重置`。右上角「刷新额度」强制重新查询，其余时候结果缓存 10 分钟，避免频繁请求。
+账号卡片会显示 Copilot premium requests 的剩余量，例如 `剩余 9751.6 / 10000 · 已用 248 · 2026-11-01 重置`。右上角「刷新额度」强制重新查询；切换账号或登录新账号后，该账号的缓存会被清掉并立即重查，其余时候结果缓存 10 分钟。
 
 数据来自 GitHub 编辑器客户端使用的同一个接口：
 

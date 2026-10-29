@@ -378,6 +378,15 @@ test("reports premium-interaction quota per account and caches it", async () => 
 
 	await call(host, "/api/copilot-accounts/credits?force=1");
 	assert.equal(quotaCalls(), afterFirst + 2);
+
+	// Switching must invalidate that account's cached quota, so the next read
+	// fetches only the account that became current.
+	const listed = await call(host, "/api/copilot-accounts/list");
+	const target = listed.value.accounts.find((account) => !account.current);
+	await call(host, "/api/copilot-accounts/use", "POST", { id: target.id });
+	const beforeSwitchRead = quotaCalls();
+	await call(host, "/api/copilot-accounts/credits");
+	assert.equal(quotaCalls(), beforeSwitchRead + 1);
 });
 
 

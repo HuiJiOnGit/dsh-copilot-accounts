@@ -88,7 +88,7 @@ The plugin writes the target account's long-lived token to both credential entri
 
 ## Quota (premium requests)
 
-Each card shows the account's remaining Copilot premium requests, for example `Quota 9751.6/10000 · resets 2026-11-01`. **Refresh quota** forces a new read; otherwise results are cached for 10 minutes.
+Each card shows the account's remaining Copilot premium requests, for example `Remaining 9751.6 / 10000 · used 248 · resets 2026-11-01`. **Refresh quota** forces a new read; switching to an account or signing one in clears that account's cached value and refetches it immediately, and otherwise results are cached for 10 minutes.
 
 The data comes from the endpoint the Copilot editor clients use:
 

@@ -47,7 +47,7 @@ const CREDITS_TTL_MS = 10 * 60 * 1000;
 const TOKEN_PATTERN = /\b(?:ghu_|gho_|github_pat_)[A-Za-z0-9_]{20,}\b/g;
 const CLASSIC_PAT_PATTERN = /\bghp_[A-Za-z0-9]{20,}\b/;
 
-const PLUGIN_VERSION = "0.1.3";
+const PLUGIN_VERSION = "0.1.4";
 const POLL_MIN_MS = 5000;
 const CAPTURE_DEBOUNCE_MS = 500;
 
@@ -394,6 +394,8 @@ export function apply(ctx) {
 			if (entry !== undefined) entry.lastUsedAt = now;
 		});
 		state.lastCapturedDigest = stableJson(payload);
+		// The next quota read for this account must not come from a stale cache.
+		state.credits.delete(id);
 		return listView();
 	}
 
@@ -669,6 +671,7 @@ export function apply(ctx) {
 			await credentials.set(TOKEN_REF, token);
 			const account = await captureCurrent("login");
 			state.lastCapturedDigest = stableJson(payload);
+			state.credits.delete(fingerprint(token));
 			flow.state = "done";
 			flow.account = account === undefined ? undefined : accountView(account, token);
 		} catch (error) {
