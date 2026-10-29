@@ -17,8 +17,9 @@ This plugin keeps a portable vault of accounts for that pair:
 
 - **One-click switch** — the next message uses the selected account.
 - **Automatic save** — every sign-in, token refresh, or external credential edit is snapshotted; the previous account is never lost.
-- **Upload** — paste a token, an account card, or a credential snippet copied from another DSH.
-- **Export all** — move every account to another machine with one JSON file.
+- **Quota at a glance** — each card shows the remaining Copilot premium requests and reset date, with a refresh button.
+- **Export** — export every account, or just one.
+- **Upload** — paste a token, an account card, or a credential snippet copied from another DSH (experimental; see below).
 
 ## Install
 
@@ -38,9 +39,9 @@ The settings page is one panel with three inline sections — no dialogs:
 
 | Section | Content |
 |---|---|
-| Active / saved accounts | Active account card, **Save current** and **Export all**, and per-account **Switch** / **Delete** |
+| Active / saved accounts | Active account card with its quota, **Save current**, **Refresh quota**, **Export all**, plus per-account **Export** / **Switch** / **Delete** |
 | Add / share sign-in | **Generate sign-in link**; the code, the shareable text, copy buttons, and the waiting state appear in the same section |
-| Upload account | Paste box, **Import**, **Choose a file**, and an expandable guide to the accepted sources |
+| Upload account | Paste box, **Import**, **Choose a file**, and an expandable guide to the accepted sources (**not field-tested**; prefer the share link) |
 
 Slash commands: `/copilot-accounts`, `/copilot-use <login|index>`, `/copilot-save`.
 
@@ -53,11 +54,13 @@ Slash commands: `/copilot-accounts`, `/copilot-use <login|index>`, `/copilot-sav
 
 ## Uploading an account
 
+> ⚠️ **Not field-tested.** This path is covered by tests for its formats, but has not been run end-to-end between real accounts. Prefer the share sign-in link above; if an upload fails, ask for a fresh share link.
+
 Three things are accepted:
 
 | Source | What it is | Where it lives |
 |---|---|---|
-| Account card | `copilot-accounts-<date>.json` | Downloaded from **Export all** on another machine |
+| Account card | `copilot-accounts-<date>.json`, or one account's `copilot-account-<login>-<date>.json` | Downloaded from **Export all** / a card's **Export** button |
 | DSH credentials file | The two entries below, or the whole file | `C:\Users\<name>\.dsh\.credentials.yaml` on Windows, `~/.dsh/.credentials.yaml` elsewhere |
 | A long-lived token | `ghu_…` (`gho_`, `github_pat_` also work) | The `refs.GITHUB_COPILOT_OAUTH_TOKEN` value in that file |
 
@@ -82,6 +85,20 @@ The vault lives at `%USERPROFILE%\.dsh\copilot-accounts.json` (or `~/.dsh/...`, 
 ## Switching semantics
 
 The plugin writes the target account's long-lived token to both credential entries and blanks `access`/`expires`. On the next Copilot request, `llm-pi-ai` exchanges the refresh token for a short-lived Copilot token and rebuilds the account's model list. No restart needed.
+
+## Quota (premium requests)
+
+Each card shows the account's remaining Copilot premium requests, for example `Quota 9751.6/10000 · resets 2026-11-01`. **Refresh quota** forces a new read; otherwise results are cached for 10 minutes.
+
+The data comes from the endpoint the Copilot editor clients use:
+
+```
+GET https://api.github.com/copilot_internal/user
+Authorization: Bearer <the account's long-lived token>
+Copilot-Integration-Id: vscode-chat
+```
+
+`quota_snapshots.premium_interactions` carries `remaining` / `entitlement` / `percent_remaining` / `credits_used`; `quota_reset_date` is the reset date and `copilot_plan` the plan. This is an **undocumented endpoint**: GitHub may change or restrict it. Failures are tolerated — a card then shows “Quota unavailable” and everything else keeps working.
 
 ## Limitations
 

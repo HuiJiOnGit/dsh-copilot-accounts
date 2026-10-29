@@ -33,12 +33,21 @@ const SCOPE = "read:user";
 const DEVICE_CODE_URL = "https://github.com/login/device/code";
 const ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
 const USER_URL = "https://api.github.com/user";
+/** The editor endpoint that carries Copilot quota (premium interactions) per account. */
+const CREDITS_URL = "https://api.github.com/copilot_internal/user";
+const CREDITS_HEADERS = {
+	"user-agent": "GitHubCopilotChat/0.35.0",
+	"editor-version": "vscode/1.107.0",
+	"editor-plugin-version": "copilot-chat/0.35.0",
+	"copilot-integration-id": "vscode-chat",
+};
+const CREDITS_TTL_MS = 10 * 60 * 1000;
 
 /** Only tokens the Copilot API can exchange; a classic PAT is deliberately excluded. */
 const TOKEN_PATTERN = /\b(?:ghu_|gho_|github_pat_)[A-Za-z0-9_]{20,}\b/g;
 const CLASSIC_PAT_PATTERN = /\bghp_[A-Za-z0-9]{20,}\b/;
 
-const PLUGIN_VERSION = "0.1.2";
+const PLUGIN_VERSION = "0.1.3";
 const POLL_MIN_MS = 5000;
 const CAPTURE_DEBOUNCE_MS = 500;
 
@@ -174,6 +183,7 @@ export function apply(ctx) {
 		captureTimer: undefined,
 		captureChain: Promise.resolve(),
 		writeChain: Promise.resolve(),
+		credits: new Map(),
 		lastCapturedDigest: undefined,
 	};
 
@@ -462,19 +472,87 @@ export function apply(ctx) {
 		return { imported, vault: await listView() };
 	}
 
-	async function exportAll() {
+	/**
+	 * One account's portable card, or every account when `id` is omitted.
+	 * The card is exactly what `import` accepts.
+	 */
+	async function exportAll(id) {
 		const vault = await readVault();
+		const selected = id === undefined ? vault.accounts : vault.accounts.filter((account) => account.id === id);
+		if (id !== undefined && selected.length === 0) throw new Error("that account is not in the vault");
 		return {
 			schema: "dsh-copilot-accounts",
 			version: 1,
 			exportedAt: new Date().toISOString(),
-			accounts: vault.accounts.map((account) => ({
+			accounts: selected.map((account) => ({
 				login: account.login,
 				name: account.name,
 				refresh: account.refresh,
 				record: account.record,
 			})),
 		};
+	}
+
+	// ── Copilot quota (premium interactions) ─────────────────────────────────
+
+	/** Shape the editor endpoint's quota snapshot into a small stable view. */
+	function normalizeCredits(data) {
+		const snapshot = data?.quota_snapshots?.premium_interactions ?? {};
+		const remaining = Number.isFinite(snapshot.remaining) ? snapshot.remaining : Number(snapshot.quota_remaining);
+		const entitlement = Number.isFinite(snapshot.entitlement) ? snapshot.entitlement : Number(snapshot.quota);
+		const unlimited = snapshot.unlimited === true || snapshot.has_quota === false;
+		return {
+			plan: typeof data?.copilot_plan === "string" ? data.copilot_plan : undefined,
+			sku: typeof data?.access_type_sku === "string" ? data.access_type_sku : undefined,
+			resetDate: typeof data?.quota_reset_date === "string" ? data.quota_reset_date : undefined,
+			unlimited,
+			remaining: Number.isFinite(remaining) ? remaining : undefined,
+			entitlement: Number.isFinite(entitlement) ? entitlement : undefined,
+			percentRemaining: Number.isFinite(snapshot.percent_remaining) ? snapshot.percent_remaining : undefined,
+			used: Number.isFinite(snapshot.credits_used) ? snapshot.credits_used : undefined,
+			overagePermitted: snapshot.overage_permitted === true,
+			chatUnlimited: data?.quota_snapshots?.chat?.unlimited === true,
+			completionsUnlimited: data?.quota_snapshots?.completions?.unlimited === true,
+			fetchedAt: new Date().toISOString(),
+		};
+	}
+
+	async function fetchCredits(token) {
+		const data = await githubJson(
+			CREDITS_URL,
+			{ headers: { ...CREDITS_HEADERS, authorization: `Bearer ${token}` } },
+			15000,
+		);
+		return normalizeCredits(data);
+	}
+
+	/**
+	 * Quota for every vaulted account. Results are cached briefly so opening
+	 * Settings repeatedly does not hit GitHub each time; `force` refreshes.
+	 */
+	async function creditsView(force) {
+		const vault = await readVault();
+		const credits = {};
+		await Promise.all(
+			vault.accounts.map(async (account) => {
+				const cached = state.credits.get(account.id);
+				if (!force && cached !== undefined && Date.now() - cached.at < CREDITS_TTL_MS) {
+					credits[account.id] = cached.value;
+					return;
+				}
+				try {
+					const value = await fetchCredits(account.refresh);
+					state.credits.set(account.id, { at: Date.now(), value });
+					credits[account.id] = value;
+				} catch (error) {
+					credits[account.id] = {
+						error: error instanceof Error ? error.message : String(error),
+						fetchedAt: new Date().toISOString(),
+					};
+				}
+			}),
+		);
+		return { credits };
 	}
 
 	// ── device flow ──────────────────────────────────────────────────────────
@@ -650,7 +728,7 @@ export function apply(ctx) {
 			if (request.method === "POST") {
 				body = await request.json().catch(() => undefined);
 			}
-			return json(200, { ok: true, value: await handler(body) });
+			return json(200, { ok: true, value: await handler(body, request) });
 		} catch (error) {
 			return json(200, { ok: false, error: error instanceof Error ? error.message : String(error) });
 		}
@@ -666,7 +744,8 @@ export function apply(ctx) {
 				register("/api/copilot-accounts/use", ["POST"], action((body) => useAccount(String(body?.id ?? "")))),
 				register("/api/copilot-accounts/delete", ["POST"], action((body) => deleteAccount(String(body?.id ?? "")))),
 				register("/api/copilot-accounts/import", ["POST"], action((body) => importText(String(body?.text ?? "")))),
-				register("/api/copilot-accounts/export", ["GET"], action(() => exportAll())),
+				register("/api/copilot-accounts/export", ["GET", "POST"], action((body) => exportAll(body?.id === undefined ? undefined : String(body.id)))),
+				register("/api/copilot-accounts/credits", ["GET"], action((body, request) => creditsView(new URL(request.url).searchParams.get("force") === "1"))),
 				register("/api/copilot-accounts/login/start", ["POST"], action(() => startLogin())),
 				register("/api/copilot-accounts/login/status", ["GET"], action(() => pollLogin())),
 				register("/api/copilot-accounts/login/cancel", ["POST"], action(() => cancelLogin())),

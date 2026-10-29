@@ -101,9 +101,10 @@ function makeHost(credentials, home) {
 }
 
 async function call(host, path, method = "GET", body) {
-	const route = [...host.routes.values()].find((candidate) => candidate.path === path);
-	assert.ok(route, `route ${path} registered`);
-	const request = new Request(`http://local${path}`, {
+	const [pathname, query] = path.split("?");
+	const route = [...host.routes.values()].find((candidate) => candidate.path === pathname);
+	assert.ok(route, `route ${pathname} registered`);
+	const request = new Request(`http://local${pathname}${query === undefined ? "" : `?${query}`}`, {
 		method,
 		headers: { "content-type": "application/json" },
 		body: body === undefined ? undefined : JSON.stringify(body),
@@ -131,6 +132,26 @@ function stubGitHub({ login = "Tester", name = "Test User", deviceToken = TOKEN 
 		}
 		if (url.includes("api.github.com/user")) {
 			return Response.json({ login, name });
+		}
+		if (url.includes("/copilot_internal/user")) {
+			return Response.json({
+				copilot_plan: "business",
+				access_type_sku: "copilot_for_business_seat_quota",
+				quota_reset_date: "2026-11-01",
+				quota_snapshots: {
+					premium_interactions: {
+						unlimited: false,
+						remaining: 9751.6,
+						entitlement: 10000,
+						percent_remaining: 97.5,
+						credits_used: 248,
+						overage_permitted: true,
+						has_quota: true,
+					},
+					chat: { unlimited: true },
+					completions: { unlimited: true },
+				},
+			});
 		}
 		throw new Error(`unexpected request ${url}`);
 	};
@@ -309,4 +330,54 @@ test("the host finishes a shared sign-in even when no page polls", async () => {
 	const listed = await call(host, "/api/copilot-accounts/list");
 	assert.equal(listed.value.login.state, "done");
 });
+
+test("exports a single account on request", async () => {
+	stubGitHub();
+	const home = await newHome();
+	const host = makeHost(makeCredentials(grant(TOKEN)), home);
+	await tick();
+	await call(host, "/api/copilot-accounts/import", "POST", { text: JSON.stringify({ refresh: OTHER }) });
+
+	const list = await call(host, "/api/copilot-accounts/list");
+	const other = list.value.accounts.find((account) => !account.current);
+
+	const one = await call(host, "/api/copilot-accounts/export", "POST", { id: other.id });
+	assert.equal(one.ok, true);
+	assert.equal(one.value.accounts.length, 1);
+	assert.equal(one.value.accounts[0].refresh, OTHER);
+
+	const missing = await call(host, "/api/copilot-accounts/export", "POST", { id: "0000000000000000" });
+	assert.equal(missing.ok, false);
+});
+
+test("reports premium-interaction quota per account and caches it", async () => {
+	const calls = stubGitHub();
+	const home = await newHome();
+	const host = makeHost(makeCredentials(grant(TOKEN)), home);
+	await tick();
+	await call(host, "/api/copilot-accounts/import", "POST", { text: JSON.stringify({ refresh: OTHER }) });
+
+	const quotaCalls = () => calls.filter((url) => url.includes("/copilot_internal/user")).length;
+
+	const first = await call(host, "/api/copilot-accounts/credits");
+	assert.equal(first.ok, true);
+	assert.equal(Object.keys(first.value.credits).length, 2);
+	const value = Object.values(first.value.credits)[0];
+	assert.equal(value.remaining, 9751.6);
+	assert.equal(value.entitlement, 10000);
+	assert.equal(value.percentRemaining, 97.5);
+	assert.equal(value.plan, "business");
+	assert.equal(value.resetDate, "2026-11-01");
+	assert.equal(value.unlimited, false);
+
+	const afterFirst = quotaCalls();
+	assert.equal(afterFirst, 2);
+
+	await call(host, "/api/copilot-accounts/credits");
+	assert.equal(quotaCalls(), afterFirst, "a cached read must not hit GitHub again");
+
+	await call(host, "/api/copilot-accounts/credits?force=1");
+	assert.equal(quotaCalls(), afterFirst + 2);
+});
+
 

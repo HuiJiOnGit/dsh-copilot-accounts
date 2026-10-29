@@ -12,8 +12,9 @@ DSH 内置的 `github-copilot` 路由只认识一份凭据（`llm-pi-ai/github-c
 
 - **一键切换**：点「切换」，下一条消息就用新账号；
 - **自动保存**：登录、刷新 token、外部改动凭据时，自动把当前账号存进账号文件，不需要你手动退出；
-- **上传账号**：别人把已登录的 DSH Copilot 凭据发给你，粘贴或选文件即可用；
-- **导出全部**：换电脑时把账号文件拷过去，导入即用。
+- **额度可见**：每个账号卡片显示 Copilot premium requests 剩余量（`已用/总量`、重置日期），可一键刷新；
+- **导出**：可以导出全部账号，也可以单独导出某一个账号；
+- **上传账号**：别人把已登录的 DSH Copilot 凭据发给你，粘贴或选文件即可用（实验性，见下）。
 
 ## 安装
 
@@ -41,9 +42,9 @@ dsh plugin --profile web add D:\path\to\dsh-copilot-accounts
 
 | 区域 | 内容 |
 |---|---|
-| 当前使用 / 已保存的账号 | 当前账号卡片；右上角「保存当前账号」「导出全部」；每个非当前账号有「切换」「删除」 |
+| 当前使用 / 已保存的账号 | 当前账号卡片和额度；右上角「保存当前账号」「刷新额度」「导出全部」；每个账号都有「导出」，非当前账号另有「切换」「删除」 |
 | 添加 / 分享登录 | 「生成授权链接」；生成后在同一区域显示设备代码、可复制的邀请文本、复制按钮和等待状态 |
-| 上传账号 | 粘贴框 +「导入」「选择文件」，以及一段可展开的来源说明 |
+| 上传账号 | 粘贴框 +「导入」「选择文件」，以及一段可展开的来源说明（**未经过实际测试**，优先用分享链接） |
 
 账号列表里每个非当前账号都有「切换」「删除」。切换只改 DSH 的凭据，不会影响 GitHub 网页登录状态，也不会影响别人。
 
@@ -66,9 +67,11 @@ dsh plugin --profile web add D:\path\to\dsh-copilot-accounts
 
 ## 上传账号：可以上传/粘贴的三样东西
 
+> ⚠️ **未经过实际测试**。这条路径目前只在测试里验证过格式，没有在真实账号之间跑过完整流程。优先用上面的「分享登录链接」——让对方授权一次最可靠。上传失败时，让对方重新发一个分享链接即可。
+
 | 来源 | 具体是什么 | 在哪里 |
 |---|---|---|
-| 本插件导出的账号卡片 | `copilot-accounts-2026-10-29.json` | 对方点「导出全部」下载得到；你「选择文件」选中，或把内容粘进输入框 |
+| 本插件导出的账号卡片 | `copilot-accounts-2026-10-29.json`（或单个账号的 `copilot-account-<login>-日期.json`） | 对方点「导出全部」/ 账号卡片上的「导出」下载得到；你「选择文件」选中，或把内容粘进输入框 |
 | DSH 凭据文件（对方没装插件） | 下面那段 YAML 片段，或整份 `.credentials.yaml` | Windows：`C:\Users\<用户名>\.dsh\.credentials.yaml`；macOS/Linux：`~/.dsh/.credentials.yaml`（装了多个 profile 也一样，凭据是全局一份） |
 | 一个长效 token | `ghu_…`（或 `gho_`、`github_pat_`） | 对方凭据文件里 `refs.GITHUB_COPILOT_OAUTH_TOKEN` 的值；也可由对方从别处复制 |
 
@@ -111,6 +114,20 @@ records["llm-pi-ai/github-copilot"]  = { type: oauth, refresh: 目标 token, acc
 ```
 
 `access` 置空、`expires` 置 0，DSH 的 Copilot 路由在下一次请求时就会用 `refresh` 重新换取短期 token，并刷新该账号的可用模型列表。**不需要重启 DSH。**
+
+## 账号额度（premium requests）
+
+账号卡片会显示 Copilot premium requests 的剩余量，例如 `额度 9751.6/10000 · 2026-11-01 重置`。右上角「刷新额度」强制重新查询，其余时候结果缓存 10 分钟，避免频繁请求。
+
+数据来自 GitHub 编辑器客户端使用的同一个接口：
+
+```
+GET https://api.github.com/copilot_internal/user
+Authorization: Bearer <账号的长效 token>
+Copilot-Integration-Id: vscode-chat
+```
+
+返回里的 `quota_snapshots.premium_interactions` 提供 `remaining` / `entitlement` / `percent_remaining` / `credits_used`，`quota_reset_date` 是重置日期，`copilot_plan` 是套餐。这是**非公开接口**，GitHub 可能随时调整或限制；插件对失败是容错的，只会显示「额度不可用」，不影响切换和登录。
 
 ## 安全与限制
 

@@ -27,6 +27,15 @@ window.__ModuleLoader__.load({
         signedOutHint: "可以在下面生成登录链接，或上传一份别人已登录的凭据。",
         saved: "已保存的账号",
         empty: "还没有保存过账号。登录一个账号后会自动保存。",
+        exportOne: "导出",
+        refreshCredits: "刷新额度",
+        quota: "额度 {remaining}/{entitlement}",
+        quotaUnlimited: "额度无限",
+        quotaUnavailable: "额度不可用",
+        quotaReset: "· {date} 重置",
+        recommended: "推荐",
+        uploadBadge: "未经过实际测试",
+        uploadWarning: "上传功能还没有经过实际测试，优先用上面的分享登录链接；上传失败的话，让对方重新发一个分享链接。",
         saveCurrent: "保存当前账号",
         exportAll: "导出全部",
         switch: "切换",
@@ -87,6 +96,15 @@ window.__ModuleLoader__.load({
         signedOutHint: "Generate a sign-in link below, or upload credentials someone else is already signed in with.",
         saved: "Saved accounts",
         empty: "Nothing saved yet. Signing in saves the account automatically.",
+        exportOne: "Export",
+        refreshCredits: "Refresh quota",
+        quota: "Quota {remaining}/{entitlement}",
+        quotaUnlimited: "Unlimited quota",
+        quotaUnavailable: "Quota unavailable",
+        quotaReset: "· resets {date}",
+        recommended: "Recommended",
+        uploadBadge: "Not field-tested",
+        uploadWarning: "Uploading has not been field-tested. Prefer the share sign-in link above; if an upload fails, ask for a fresh share link.",
         saveCurrent: "Save current",
         exportAll: "Export all",
         switch: "Switch",
@@ -197,6 +215,18 @@ window.__ModuleLoader__.load({
         color: "#2da44e",
         border: "1px solid rgba(45,164,78,0.5)",
       },
+      tag: {
+        fontSize: "11px",
+        fontWeight: 600,
+        padding: "1px 8px",
+        borderRadius: "999px",
+        color: "#bf8700",
+        border: "1px solid rgba(191,135,0,0.55)",
+        background: "rgba(191,135,0,0.08)",
+        whiteSpace: "nowrap",
+      },
+      warning: { margin: 0, fontSize: "12px", color: "#bf8700", lineHeight: 1.6 },
+      quota: { fontSize: "12px", opacity: 0.78 },
       meta: { fontSize: "12px", opacity: 0.62, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
       rowActions: { display: "flex", gap: "6px", flex: "0 0 auto", flexWrap: "wrap" },
       notice: { fontSize: "12px", color: "#2da44e" },
@@ -314,12 +344,29 @@ window.__ModuleLoader__.load({
       return `${url}?user_code=${encodeURIComponent(flow.userCode)}`;
     }
 
-    function AccountCard({ account, busy, onUse, onDelete }) {
+    function formatNumber(value) {
+      return Number.isInteger(value) ? String(value) : value.toFixed(1);
+    }
+
+    /** One short line for an account's premium-interaction quota, when known. */
+    function quotaText(quota) {
+      if (quota === undefined) return undefined;
+      if (quota.error) return t("quotaUnavailable");
+      if (quota.unlimited) return t("quotaUnlimited");
+      if (quota.remaining !== undefined && quota.entitlement !== undefined) {
+        const text = t("quota", { remaining: formatNumber(quota.remaining), entitlement: formatNumber(quota.entitlement) });
+        return quota.resetDate ? `${text} ${t("quotaReset", { date: quota.resetDate })}` : text;
+      }
+      return undefined;
+    }
+
+    function AccountCard({ account, busy, credits, onUse, onDelete, onExport }) {
       const metaParts = [];
       if (account.name) metaParts.push(account.name);
       if (account.models) metaParts.push(`${account.models} ${t("models")}`);
       const lastUsed = formatTime(account.lastUsedAt);
       if (lastUsed) metaParts.push(`${t("lastUsed")} ${lastUsed}`);
+      const quota = quotaText(credits?.[account.id]);
       return jsxs("div", {
         style: { ...css.card, ...(account.current ? css.cardCurrent : {}) },
         children: [
@@ -335,7 +382,8 @@ window.__ModuleLoader__.load({
                 ].filter(Boolean),
               }),
               jsx("div", { style: css.meta, children: metaParts.join(" · ") || account.id }),
-            ],
+              quota !== undefined ? jsx("div", { style: css.quota, children: quota }) : null,
+            ].filter(Boolean),
           }),
           jsxs("div", {
             style: css.rowActions,
@@ -349,6 +397,13 @@ window.__ModuleLoader__.load({
                     onClick: () => onUse(account),
                     children: busy ? t("switching") : t("switch"),
                   }),
+              jsx(Button, {
+                variant: "outline",
+                size: "sm",
+                disabled: busy,
+                onClick: () => onExport(account),
+                children: t("exportOne"),
+              }),
               jsx(Button, {
                 variant: "outline",
                 size: "sm",
@@ -369,6 +424,7 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState("");
       const [importText, setImportText] = useState("");
       const [copied, setCopied] = useState("");
+      const [credits, setCredits] = useState({});
       const fileRef = useRef(null);
 
       const run = async (label, task) => {
@@ -396,8 +452,18 @@ window.__ModuleLoader__.load({
         }
       };
 
+      /** Quota is best-effort: a failure never blocks the page. */
+      const loadCredits = async (force) => {
+        try {
+          const value = await call(`credits${force ? "?force=1" : ""}`);
+          setCredits(value.credits ?? {});
+        } catch {
+          // leave the previous quota values in place
+        }
+      };
+
       useEffect(() => {
-        void refresh();
+        void refresh().then(() => loadCredits(false));
       }, []);
 
       // A shared sign-in is completed by the host; keep this panel in sync.
@@ -442,6 +508,7 @@ window.__ModuleLoader__.load({
         run("use", async () => {
           setView(await call("use", { method: "POST", body: JSON.stringify({ id: account.id }) }));
           setNotice(t("switched"));
+          void loadCredits(false);
         });
 
       const deleteAccount = (account) =>
@@ -454,6 +521,14 @@ window.__ModuleLoader__.load({
         run("export", async () => {
           const value = await call("export");
           download(`copilot-accounts-${new Date().toISOString().slice(0, 10)}.json`, `${JSON.stringify(value, undefined, 2)}\n`);
+          setNotice(t("exported"));
+        });
+
+      const exportOne = (account) =>
+        run("export", async () => {
+          const value = await call("export", { method: "POST", body: JSON.stringify({ id: account.id }) });
+          const safe = (account.login ?? account.id).replace(/[^A-Za-z0-9._-]+/g, "-");
+          download(`copilot-account-${safe}-${new Date().toISOString().slice(0, 10)}.json`, `${JSON.stringify(value, undefined, 2)}\n`);
           setNotice(t("exported"));
         });
 
@@ -475,6 +550,7 @@ window.__ModuleLoader__.load({
           setView(value.vault);
           setImportText("");
           setNotice(t("imported", { n: value.imported.length }));
+          void loadCredits(false);
         });
 
       const onFile = async (event) => {
@@ -518,6 +594,7 @@ window.__ModuleLoader__.load({
                     style: css.actions,
                     children: [
                       jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void saveCurrent(), children: busy === "save" ? t("saving") : t("saveCurrent") }),
+                      jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void run("credits", () => loadCredits(true)), children: busy === "credits" ? t("saving") : t("refreshCredits") }),
                       jsx(Button, { variant: "outline", size: "sm", disabled: busy !== "", onClick: () => void exportAll(), children: t("exportAll") }),
                     ],
                   }),
@@ -537,7 +614,7 @@ window.__ModuleLoader__.load({
                       }),
                     ],
                   })
-                : jsx(AccountCard, { account: active, busy: busy === "use", onUse: useAccount, onDelete: deleteAccount }),
+                : jsx(AccountCard, { account: active, busy: busy === "use", credits, onUse: useAccount, onDelete: deleteAccount, onExport: exportOne }),
               jsxs("div", {
                 style: { display: "flex", flexDirection: "column", gap: "8px" },
                 children: [
@@ -547,7 +624,7 @@ window.__ModuleLoader__.load({
                     : jsxs(Fragment, {
                         children: accounts
                           .filter((account) => !account.current)
-                          .map((account) => jsx(AccountCard, { account, busy: busy === "use", onUse: useAccount, onDelete: deleteAccount }, account.id)),
+                          .map((account) => jsx(AccountCard, { account, busy: busy === "use", credits, onUse: useAccount, onDelete: deleteAccount, onExport: exportOne }, account.id)),
                       }),
                 ],
               }),
@@ -557,7 +634,13 @@ window.__ModuleLoader__.load({
           jsxs("div", {
             style: css.section,
             children: [
-              jsx("h3", { style: css.sectionTitle, children: t("shareTitle") }),
+              jsxs("div", {
+                style: css.sectionHead,
+                children: [
+                  jsx("h3", { style: css.sectionTitle, children: t("shareTitle") }),
+                  jsx("span", { style: css.badge, children: t("recommended") }),
+                ],
+              }),
               jsx("p", { style: css.sectionDesc, children: t("shareDesc") }),
               pending
                 ? jsxs(Fragment, {
@@ -648,8 +731,15 @@ window.__ModuleLoader__.load({
           jsxs("div", {
             style: css.section,
             children: [
-              jsx("h3", { style: css.sectionTitle, children: t("uploadTitle") }),
+              jsxs("div", {
+                style: css.sectionHead,
+                children: [
+                  jsx("h3", { style: css.sectionTitle, children: t("uploadTitle") }),
+                  jsx("span", { style: css.tag, children: t("uploadBadge") }),
+                ],
+              }),
               jsx("p", { style: css.sectionDesc, children: t("uploadDesc") }),
+              jsx("p", { style: css.warning, children: t("uploadWarning") }),
               jsx("textarea", {
                 value: importText,
                 onChange: (event) => setImportText(event.target.value),
